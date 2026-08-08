@@ -2,7 +2,7 @@ using FlooringManager.Domain.Shared;
 
 namespace FlooringManager.Application.Auth;
 
-public sealed record CurrentUser(Guid UserId, Guid CompanyId, Guid AuthProviderUserId, string Email, UserRole Role, bool IsActive);
+public sealed record CurrentUser(Guid UserId, Guid CompanyId, Guid AuthProviderUserId, string FirstName, string LastName, string Email, UserRole Role, bool IsActive);
 
 public interface ICurrentUserService
 {

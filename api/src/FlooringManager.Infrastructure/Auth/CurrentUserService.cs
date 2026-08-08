@@ -24,7 +24,7 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor,
         var user = await dbContext.Users
             .AsNoTracking()
             .Where(u => u.AuthProviderUserId == authUserId && u.IsActive)
-            .Select(u => new CurrentUser(u.Id, u.CompanyId, u.AuthProviderUserId, u.Email, u.Role, u.IsActive))
+            .Select(u => new CurrentUser(u.Id, u.CompanyId, u.AuthProviderUserId, u.FirstName, u.LastName, u.Email, u.Role, u.IsActive))
             .FirstOrDefaultAsync(cancellationToken);
 
         _cached = user;

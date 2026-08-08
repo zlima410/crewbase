@@ -20,6 +20,8 @@ public sealed class MeController(ICurrentUserService currentUser) : ControllerBa
         return Ok(new MeResponse(
             user.UserId,
             user.CompanyId,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role.ToString()));
     }
@@ -28,5 +30,7 @@ public sealed class MeController(ICurrentUserService currentUser) : ControllerBa
 public sealed record MeResponse(
     Guid UserId,
     Guid CompanyId,
+    string FirstName,
+    string LastName,
     string Email,
     string Role);
