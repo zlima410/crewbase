@@ -62,3 +62,5 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 
 hardwood-flooring-job-manager-mvp.md
+product-backlog.md
+post-mvp-backlog.md
