@@ -26,6 +26,13 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             Instance = httpContext.Request.Path
         };
 
+        if (exception is UnauthorizedAccessException)
+        {
+            problemDetails.Status = StatusCodes.Status403Forbidden;
+            problemDetails.Title = "Not authorized.";
+            problemDetails.Detail = "Your account is not provisioned for this operation.";
+        }
+
         httpContext.Response.StatusCode = problemDetails.Status.Value;
 
         await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);

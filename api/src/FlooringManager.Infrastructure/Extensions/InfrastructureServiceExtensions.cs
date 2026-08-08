@@ -1,5 +1,7 @@
 using FlooringManager.Application.Auth;
+using FlooringManager.Application.Customers;
 using FlooringManager.Infrastructure.Auth;
+using FlooringManager.Infrastructure.Customers;
 using FlooringManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +15,10 @@ public static class InfrastructureServiceExtensions
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<ICustomerService, CustomerService>();
+
         return services;
     }
     public static IServiceCollection AddSupabaseDatabase(
