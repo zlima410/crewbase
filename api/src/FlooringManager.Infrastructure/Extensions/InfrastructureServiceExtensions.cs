@@ -1,8 +1,10 @@
 using FlooringManager.Application.Auth;
 using FlooringManager.Application.Customers;
+using FlooringManager.Application.Properties;
 using FlooringManager.Infrastructure.Auth;
 using FlooringManager.Infrastructure.Customers;
 using FlooringManager.Infrastructure.Persistence;
+using FlooringManager.Infrastructure.Properties;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class InfrastructureServiceExtensions
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IPropertyService, PropertyService>();
 
         return services;
     }
