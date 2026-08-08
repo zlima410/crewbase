@@ -9,16 +9,22 @@ namespace FlooringManager.Infrastructure.Extensions;
 
 public static class InfrastructureServiceExtensions
 {
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
-        var connectionString = configuration.GetConnectionString("SupabaseDb") ?? throw new InvalidOperationException("Missing required connection string 'SupabaseDb'. " + "Set it with: dotnet user-secrets set \"ConnectionStrings:SupabaseDb\" \"...\"");
-
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString));
-
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-
+        return services;
+    }
+    public static IServiceCollection AddSupabaseDatabase(
+        this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var conn = cfg.GetConnectionString("SupabaseDb")
+                ?? throw new InvalidOperationException("Missing 'ConnectionStrings:SupabaseDb'.");
+            options.UseNpgsql(conn);
+        });
         return services;
     }
 }

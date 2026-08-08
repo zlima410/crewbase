@@ -1,35 +1,47 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FlooringManager.Api.Auth;
 
 public static class AuthServiceExtensions
 {
-    public static IServiceCollection AddSupabaseAuth(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddSupabaseAuth(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        var options = configuration.GetSection(SupabaseAuthOptions.SectionName)
-            .Get<SupabaseAuthOptions>() ?? throw new InvalidOperationException("Missing 'Supabase' configuration section.");
-
-        if (string.IsNullOrWhiteSpace(options.JwtSecret))
-            throw new InvalidOperationException("Missing 'Supabase:JwtSecret'.");
+        services.AddOptions<SupabaseAuthOptions>()
+            .Bind(configuration.GetSection(SupabaseAuthOptions.SectionName))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.JwtSecret), "Missing 'Supabase:JwtSecret'.")
+            .ValidateOnStart();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(o =>
-            {
-                o.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.JwtSecret)),
-                    ValidateIssuer = !string.IsNullOrWhiteSpace(options.Issuer),
-                    ValidIssuer = options.Issuer,
-                    ValidAudience = options.Audience,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(1)
-                };
-            });
+            .AddJwtBearer();
+
+        services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, ConfigureJwtBearer>();
 
         services.AddAuthorization();
         return services;
+    }
+
+    private sealed class ConfigureJwtBearer(IOptions<SupabaseAuthOptions> supabase)
+        : IPostConfigureOptions<JwtBearerOptions>
+    {
+        public void PostConfigure(string? name, JwtBearerOptions options)
+        {
+            var s = supabase.Value;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(s.JwtSecret)),
+                ValidateIssuer = !string.IsNullOrWhiteSpace(s.Issuer),
+                ValidIssuer = s.Issuer,
+                ValidateAudience = true,
+                ValidAudience = s.Audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(1)
+            };
+        }
     }
 }

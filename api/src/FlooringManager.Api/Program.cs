@@ -14,7 +14,8 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.AddApiServices();
-builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddInfrastructureServices();
+builder.Services.AddSupabaseDatabase(builder.Configuration);
 builder.Services.AddSupabaseAuth(builder.Configuration);
 
 var app = builder.Build();
