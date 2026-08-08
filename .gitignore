@@ -548,4 +548,7 @@ hardwood-flooring-job-manager-mvp.md
 product-backlog.md
 post-mvp-backlog.md
 
-appsettings*
+**/appsettings.Secrets.json
+**/appsettings.*.local.json
+.env
+.env.local
