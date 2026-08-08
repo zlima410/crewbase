@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FlooringManager.Api.Auth;
 using FlooringManager.Api.Extensions;
 using FlooringManager.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -14,6 +15,7 @@ builder.Logging.AddDebug();
 
 builder.Services.AddApiServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddSupabaseAuth(builder.Configuration);
 
 var app = builder.Build();
 
@@ -25,6 +27,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

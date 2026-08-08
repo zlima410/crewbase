@@ -552,3 +552,6 @@ post-mvp-backlog.md
 **/appsettings.*.local.json
 .env
 .env.local
+
+bin
+obj

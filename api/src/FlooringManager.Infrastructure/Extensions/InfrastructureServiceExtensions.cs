@@ -1,3 +1,5 @@
+using FlooringManager.Application.Auth;
+using FlooringManager.Infrastructure.Auth;
 using FlooringManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +15,9 @@ public static class InfrastructureServiceExtensions
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         return services;
     }
