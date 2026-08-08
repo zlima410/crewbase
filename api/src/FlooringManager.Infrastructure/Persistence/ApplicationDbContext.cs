@@ -1,5 +1,6 @@
 using FlooringManager.Domain.Companies;
 using FlooringManager.Domain.Customers;
+using FlooringManager.Domain.Estimates;
 using FlooringManager.Domain.Properties;
 using FlooringManager.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Property> Properties => Set<Property>();
+    public DbSet<Estimate> Estimates => Set<Estimate>();
+    public DbSet<EstimateRoom> EstimateRooms => Set<EstimateRoom>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
