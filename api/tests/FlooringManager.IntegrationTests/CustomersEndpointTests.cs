@@ -74,7 +74,7 @@ public sealed class CustomersEndpointTests(ApiFactory factory) : IClassFixture<A
     private HttpClient ClientFor(Guid sub)
     {
         var client = factory.CreateClient();
-        var token = new TestJwtBuilder().WithSub(sub).Build();
+        var token = new TestJwtBuilder(factory.SigningKey).WithSub(sub).Build();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
         return client;

@@ -2,14 +2,15 @@ using FlooringManager.Application.Auth;
 using FlooringManager.Application.Customers;
 using FlooringManager.Domain.Customers;
 using FlooringManager.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 
 namespace FlooringManager.Infrastructure.Customers;
 
 public sealed class CustomerService(ApplicationDbContext db, ICurrentUserService currentUserService, TimeProvider timeProvider) : ICustomerService
 {
+    private static string EscapeLike(string s) =>
+    s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
     public async Task<CustomerResponse> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         var user = await RequireUserAsync(cancellationToken);
@@ -79,12 +80,25 @@ public sealed class CustomerService(ApplicationDbContext db, ICurrentUserService
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var term = query.Search.Trim().ToLower();
-            q = q.Where(c =>
-                c.FirstName.ToLower().Contains(term) ||
-                c.LastName.ToLower().Contains(term) ||
-                (c.Email != null && c.Email.ToLower().Contains(term)) ||
-                c.Phone.ToLower().Contains(term));
+            var pattern = $"%{EscapeLike(query.Search.Trim())}%";
+
+            if (db.Database.IsNpgsql())
+            {
+                q = q.Where(c =>
+                    EF.Functions.ILike(c.FirstName, pattern) ||
+                    EF.Functions.ILike(c.LastName, pattern) ||
+                    (c.Email != null && EF.Functions.ILike(c.Email, pattern)) ||
+                    EF.Functions.ILike(c.Phone, pattern));
+            }
+            else
+            {
+                // Kept as a compatibility branch only. For integration tests using SQLite
+                q = q.Where(c =>
+                    EF.Functions.Like(c.FirstName, pattern) ||
+                    EF.Functions.Like(c.LastName, pattern) ||
+                    (c.Email != null && EF.Functions.Like(c.Email, pattern)) ||
+                    EF.Functions.Like(c.Phone, pattern));
+            }
         }
 
         var total = await q.CountAsync(cancellationToken);

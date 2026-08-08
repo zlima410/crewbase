@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
@@ -12,6 +12,7 @@ const PAGE_SIZE = 25;
 
 export function CustomersPage() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const page = Number(params.get("page") ?? 1);
   const [search, setSearch] = useState(params.get("search") ?? "");
   const debounced = useDebouncedValue(search, 250);
@@ -57,13 +58,9 @@ export function CustomersPage() {
             </TableHeader>
             <TableBody>
               {data!.items.map((c) => (
-                <TableRow
-                  key={c.id}
-                  className="cursor-pointer"
-                  onClick={() => (window.location.href = `/customers/${c.id}`)}
-                >
+                <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
                   <TableCell>
-                    <Link to={`/customers/${c.id}`} className="hover:underline">
+                    <Link to={`/customers/${c.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                       {c.lastName}, {c.firstName}
                     </Link>
                   </TableCell>

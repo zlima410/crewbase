@@ -73,8 +73,14 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
     [Fact]
     public async Task Get_WithWrongSignature_Returns401()
     {
-        var token = new TestJwtBuilder()
-            .WithSecret("some-other-secret-that-is-also-32-bytes-long!!")
+        using var otherRsa = System.Security.Cryptography.RSA.Create(2048);
+        var otherKey = new Microsoft.IdentityModel.Tokens.RsaSecurityKey(otherRsa)
+        {
+            KeyId = "impostor-key"
+        };
+
+        var token = new TestJwtBuilder(factory.SigningKey)
+            .WithSigningKey(otherKey)
             .Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
@@ -84,7 +90,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
     [Fact]
     public async Task Get_WithWrongIssuer_Returns401()
     {
-        var token = new TestJwtBuilder()
+        var token = new TestJwtBuilder(factory.SigningKey)
             .WithIssuer("https://evil.example/auth/v1")
             .Build();
 
@@ -95,7 +101,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
     [Fact]
     public async Task Get_WithWrongAudience_Returns401()
     {
-        var token = new TestJwtBuilder()
+        var token = new TestJwtBuilder(factory.SigningKey)
             .WithAudience("anon")
             .Build();
 
@@ -106,7 +112,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
     [Fact]
     public async Task Get_WithExpiredToken_Returns401()
     {
-        var token = new TestJwtBuilder().Expired().Build();
+        var token = new TestJwtBuilder(factory.SigningKey).Expired().Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -118,7 +124,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
         var sub = Guid.NewGuid();
         var (company, user) = await SeedUserAsync(sub, role: UserRole.OfficeManager);
 
-        var token = new TestJwtBuilder().WithSub(sub).Build();
+        var token = new TestJwtBuilder(factory.SigningKey).WithSub(sub).Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -138,7 +144,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
         var (company, _) = await SeedUserAsync(sub);
 
         var forgedCompanyId = Guid.NewGuid();
-        var token = new TestJwtBuilder()
+        var token = new TestJwtBuilder(factory.SigningKey)
             .WithSub(sub)
             .WithClaim("company_id", forgedCompanyId.ToString())
             .Build();
@@ -163,7 +169,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
         var sub = Guid.NewGuid();
         await SeedUserAsync(sub, role: role);
 
-        var token = new TestJwtBuilder().WithSub(sub).Build();
+        var token = new TestJwtBuilder(factory.SigningKey).WithSub(sub).Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
         var body = await response.Content.ReadFromJsonAsync<MeResponse>();
@@ -174,7 +180,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
     [Fact]
     public async Task Get_WithValidToken_ButNoLocalUser_Returns403()
     {
-        var token = new TestJwtBuilder().WithSub(Guid.NewGuid()).Build();
+        var token = new TestJwtBuilder(factory.SigningKey).WithSub(Guid.NewGuid()).Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -186,7 +192,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
         var sub = Guid.NewGuid();
         await SeedUserAsync(sub, isActive: false);
 
-        var token = new TestJwtBuilder().WithSub(sub).Build();
+        var token = new TestJwtBuilder(factory.SigningKey).WithSub(sub).Build();
 
         var response = await CreateClient(token).GetAsync(Endpoint);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
