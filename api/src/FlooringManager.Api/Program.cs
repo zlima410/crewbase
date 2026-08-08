@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FlooringManager.Api.Extensions;
+using FlooringManager.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
@@ -12,6 +13,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.AddApiServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 

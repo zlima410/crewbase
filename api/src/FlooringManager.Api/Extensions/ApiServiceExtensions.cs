@@ -1,5 +1,6 @@
+using FlooringManager.Api.HealthChecks;
 using FlooringManager.Api.Middleware;
-using Microsoft.AspNetCore.Components.Forms.Mapping;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace FlooringManager.Api.Extensions;
 
@@ -17,7 +18,8 @@ public static class ApiServiceExtensions
         services.AddProblemDetails();
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<DatabaseHealthCheck>("database");
 
         return services;
     }
