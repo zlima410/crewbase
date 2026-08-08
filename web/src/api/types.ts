@@ -25,3 +25,25 @@ export type CreateCustomerRequest = {
 };
 
 export type UpdateCustomerRequest = CreateCustomerRequest;
+
+export type Property = {
+  id: string;
+  customerId: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  accessNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatePropertyRequest = {
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  accessNotes?: string | null;
+};
+
+export type UpdatePropertyRequest = CreatePropertyRequest;

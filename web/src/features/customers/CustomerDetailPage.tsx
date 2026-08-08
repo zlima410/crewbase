@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Skeleton } from '../../components/ui/skeleton'
 import { useCustomer } from '../../api/customers'
+import { PropertiesSection } from '../properties/PropertiesSection'
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,10 +34,7 @@ export function CustomerDetailPage() {
         <Info label="Created" value={new Date(data.createdAt).toLocaleString()} />
         <Info label="Updated" value={new Date(data.updatedAt).toLocaleString()} />
 
-        <section className="border-t pt-4">
-          <h3 className="font-medium mb-2">Properties</h3>
-          <p className="text-muted-foreground text-sm">Coming in Phase 4.</p>
-        </section>
+        <PropertiesSection customerId={data.id} />
       </CardContent>
     </Card>
   );
