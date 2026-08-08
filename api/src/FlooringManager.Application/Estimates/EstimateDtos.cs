@@ -28,7 +28,7 @@ public sealed record UpdateEstimateRequest(
     DateTimeOffset? ExpirationDate,
     [Range(0, double.MaxValue)] decimal Tax,
     [MaxLength(4000)] string? Notes,
-    List<EstimateRoomInput> Rooms);
+    [Required] List<EstimateRoomInput> Rooms);
 
 public sealed record EstimateRoomResponse(
     Guid Id,

@@ -170,13 +170,16 @@ public sealed class EstimateService(
         }
     }
 
-    private static void UpsertRooms(Estimate estimate, List<EstimateRoomInput> inputs)
+    private void UpsertRooms(Estimate estimate, List<EstimateRoomInput> inputs)
     {
         var byId = estimate.Rooms.ToDictionary(r => r.Id);
         var incomingIds = new HashSet<Guid>(inputs.Where(i => i.Id is not null).Select(i => i.Id!.Value));
 
         foreach (var toDelete in estimate.Rooms.Where(r => !incomingIds.Contains(r.Id)).ToList())
+        {
             estimate.Rooms.Remove(toDelete);
+            db.EstimateRooms.Remove(toDelete);
+        }
 
         var position = 0;
         foreach (var input in inputs)
@@ -200,10 +203,11 @@ public sealed class EstimateService(
             }
             else
             {
-                estimate.Rooms.Add(new EstimateRoom
+                var newRoom = new EstimateRoom
                 {
                     Id = Guid.NewGuid(),
                     EstimateId = estimate.Id,
+                    Estimate = estimate,
                     Name = input.Name.Trim(),
                     LengthFeet = m.LengthFeet,
                     WidthFeet = m.WidthFeet,
@@ -215,7 +219,9 @@ public sealed class EstimateService(
                     LaborRatePerSqFt = input.LaborRatePerSqFt,
                     MaterialRatePerSqFt = input.MaterialRatePerSqFt,
                     Position = position++
-                });
+                };
+                estimate.Rooms.Add(newRoom);
+                db.EstimateRooms.Add(newRoom);
             }
         }
     }
