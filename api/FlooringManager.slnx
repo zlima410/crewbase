@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FlooringManager.Api/FlooringManager.Api.csproj" />
+    <Project Path="src/FlooringManager.Application/FlooringManager.Application.csproj" />
+    <Project Path="src/FlooringManager.Domain/FlooringManager.Domain.csproj" />
+    <Project Path="src/FlooringManager.Infrastructure/FlooringManager.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FlooringManager.IntegrationTests/FlooringManager.IntegrationTests.csproj" />
+    <Project Path="tests/FlooringManager.UnitTests/FlooringManager.UnitTests.csproj" />
+  </Folder>
+</Solution>

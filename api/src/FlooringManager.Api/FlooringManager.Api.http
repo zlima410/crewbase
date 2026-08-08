@@ -1,0 +1,6 @@
+@FlooringManager.Api_HostAddress = http://localhost:5148
+
+GET {{FlooringManager.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
