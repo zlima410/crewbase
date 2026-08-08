@@ -1,6 +1,6 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FlooringManager.Api.Auth;
@@ -11,37 +11,27 @@ public static class AuthServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddOptions<SupabaseAuthOptions>()
-            .Bind(configuration.GetSection(SupabaseAuthOptions.SectionName))
-            .Validate(o => !string.IsNullOrWhiteSpace(o.JwtSecret), "Missing 'Supabase:JwtSecret'.")
-            .ValidateOnStart();
+        var options = configuration.GetSection(SupabaseAuthOptions.SectionName).Get<SupabaseAuthOptions>() ?? throw new InvalidOperationException("Missing 'Supabase' configuration section.");
+
+        if (string.IsNullOrWhiteSpace(options.Issuer))
+            throw new InvalidOperationException("Missing 'Supabase:Issuer'.");
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer();
-
-        services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, ConfigureJwtBearer>();
+            .AddJwtBearer(o =>
+            {
+                o.MetadataAddress = $"{options.Issuer.TrimEnd('/')}/.well-known/openid-configuration";
+                o.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = options.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = options.Audience,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(1),
+                };
+            });
 
         services.AddAuthorization();
         return services;
-    }
-
-    private sealed class ConfigureJwtBearer(IOptions<SupabaseAuthOptions> supabase)
-        : IPostConfigureOptions<JwtBearerOptions>
-    {
-        public void PostConfigure(string? name, JwtBearerOptions options)
-        {
-            var s = supabase.Value;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(s.JwtSecret)),
-                ValidateIssuer = !string.IsNullOrWhiteSpace(s.Issuer),
-                ValidIssuer = s.Issuer,
-                ValidateAudience = true,
-                ValidAudience = s.Audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(1)
-            };
-        }
     }
 }

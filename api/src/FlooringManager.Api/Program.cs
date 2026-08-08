@@ -18,6 +18,11 @@ builder.Services.AddInfrastructureServices();
 builder.Services.AddSupabaseDatabase(builder.Configuration);
 builder.Services.AddSupabaseAuth(builder.Configuration);
 
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .WithOrigins("http://localhost:5173")
+    .AllowAnyHeader()
+    .WithMethods("GET", "POST", "PUT", "OPTIONS")));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -28,6 +33,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
