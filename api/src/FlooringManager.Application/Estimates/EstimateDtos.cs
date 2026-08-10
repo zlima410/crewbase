@@ -18,7 +18,8 @@ public sealed record CreateEstimateRequest(
     [Required] Guid CustomerId,
     [Required] Guid PropertyId,
     DateTimeOffset? ExpirationDate,
-    [Range(0, double.MaxValue)] decimal Tax,
+    // Use typeof(decimal) — [Range(0, 100)] truncates decimals to int and lets 100.01 through.
+    [Range(typeof(decimal), "0", "100")] decimal TaxRate,
     [MaxLength(4000)] string? Notes,
     List<EstimateRoomInput> Rooms);
 
@@ -26,9 +27,9 @@ public sealed record UpdateEstimateRequest(
     [Required] Guid CustomerId,
     [Required] Guid PropertyId,
     DateTimeOffset? ExpirationDate,
-    [Range(0, double.MaxValue)] decimal Tax,
+    [Range(typeof(decimal), "0", "100")] decimal TaxRate,
     [MaxLength(4000)] string? Notes,
-    [Required] List<EstimateRoomInput> Rooms);
+    List<EstimateRoomInput> Rooms);
 
 public sealed record EstimateRoomResponse(
     Guid Id,
@@ -60,6 +61,7 @@ public sealed record EstimateResponse(
     DateTimeOffset UpdatedAt,
     decimal LaborSubtotal,
     decimal MaterialSubtotal,
+    decimal TaxRate,
     decimal Tax,
     decimal Subtotal,
     decimal Total,

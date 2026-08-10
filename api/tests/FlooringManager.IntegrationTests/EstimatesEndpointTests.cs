@@ -112,7 +112,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         Guid propertyId,
         EstimateStatus status = EstimateStatus.Draft,
         string number = "EST-9000",
-        decimal tax = 0m)
+        decimal taxRate = 0m)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -128,10 +128,11 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
             Status = status,
             CreatedDate = now,
             UpdatedAt = now,
-            Tax = tax,
+            TaxRate = taxRate,
+            Tax = 0m,
             LaborSubtotal = 0m,
             MaterialSubtotal = 0m,
-            Total = tax
+            Total = 0m
         };
         db.Estimates.Add(estimate);
         await db.SaveChangesAsync();
@@ -164,10 +165,10 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
     private static CreateEstimateRequest CreateRequest(
         Guid customerId,
         Guid propertyId,
-        decimal tax = 0m,
+        decimal taxRate = 0m,
         string? notes = null,
         params EstimateRoomInput[] rooms) =>
-        new(customerId, propertyId, null, tax, notes, rooms.ToList());
+        new(customerId, propertyId, null, taxRate, notes, rooms.ToList());
 
     [Fact]
     public async Task Post_WithoutToken_Returns401()
@@ -280,7 +281,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         Assert.NotNull(response.Headers.Location);
-        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(body);
         Assert.Contains($"/api/v1/estimates/{body!.Id}",
             response.Headers.Location!.ToString(), StringComparison.OrdinalIgnoreCase);
@@ -297,6 +298,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal(1320m, body.LaborSubtotal);
         Assert.Equal(412.5m, body.MaterialSubtotal);
         Assert.Equal(1732.5m, body.Subtotal);
+        Assert.Equal(0m, body.TaxRate);
         Assert.Equal(0m, body.Tax);
         Assert.Equal(1732.5m, body.Total);
 
@@ -324,25 +326,26 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         // Subtotal:          2169.3
         // Tax:               50
         // Total:             2219.3
-        var request = CreateRequest(customer.Id, property.Id, tax: 50m,
+        var request = CreateRequest(customer.Id, property.Id, taxRate: 10m,
             rooms: new[]
             {
                 Room("Living Room", 20m, 15m, 10m, laborRate: 4m, materialRate: 1.25m),
-                Room("Hallway",     15.5m, 4m, 5m, laborRate: 5m, materialRate: 1.5m),
+                Room("Hallway", 15.5m, 4m, 5m, laborRate: 5m, materialRate: 1.5m),
             });
 
         var response = await client.PostAsJsonAsync(Endpoint, request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(body);
         Assert.Equal(2, body!.Rooms.Count);
 
         Assert.Equal(1656m, body.LaborSubtotal);
         Assert.Equal(513.3m, body.MaterialSubtotal);
         Assert.Equal(2169.3m, body.Subtotal);
-        Assert.Equal(50m, body.Tax);
-        Assert.Equal(2219.3m, body.Total);
+        Assert.Equal(10m, body.TaxRate);
+        Assert.Equal(216.93m, body.Tax);
+        Assert.Equal(2386.23m, body.Total);
 
         Assert.Equal("Living Room", body.Rooms[0].Name);
         Assert.Equal(0, body.Rooms[0].Position);
@@ -356,16 +359,18 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var (_, sub, customer, property) = await SeedFullTenantAsync();
         var client = ClientFor(sub);
 
-        var request = CreateRequest(customer.Id, property.Id, tax: 0m);
+        var request = CreateRequest(customer.Id, property.Id, taxRate: 0m);
 
         var response = await client.PostAsJsonAsync(Endpoint, request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await response.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(body);
         Assert.Empty(body!.Rooms);
         Assert.Equal(0m, body.LaborSubtotal);
         Assert.Equal(0m, body.MaterialSubtotal);
+        Assert.Equal(0m, body.TaxRate);
+        Assert.Equal(0m, body.Tax);
         Assert.Equal(0m, body.Total);
         Assert.Equal(EstimateStatus.Draft, body.Status);
     }
@@ -379,13 +384,13 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var withText = await client.PostAsJsonAsync(
             Endpoint,
             CreateRequest(customer.Id, property.Id, notes: "  needs sanding  ", rooms: Room()));
-        var textBody = await withText.Content.ReadFromJsonAsync<EstimateResponse>();
+        var textBody = await withText.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.Equal("needs sanding", textBody!.Notes);
 
         var withBlank = await client.PostAsJsonAsync(
             Endpoint,
             CreateRequest(customer.Id, property.Id, notes: "   ", rooms: Room()));
-        var blankBody = await withBlank.Content.ReadFromJsonAsync<EstimateResponse>();
+        var blankBody = await withBlank.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.Null(blankBody!.Notes);
     }
 
@@ -432,7 +437,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
     }
 
     [Fact]
-    public async Task Post_NegativeTax_Returns400()
+    public async Task Post_NegativeTaxRate_Returns400()
     {
         var (_, sub, customer, property) = await SeedFullTenantAsync();
         var client = ClientFor(sub);
@@ -440,6 +445,20 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var response = await client.PostAsJsonAsync(
             Endpoint,
             new CreateEstimateRequest(customer.Id, property.Id, null, -1m, null,
+                new List<EstimateRoomInput> { Room() }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_TaxRateAbove100_Returns400()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var response = await client.PostAsJsonAsync(
+            Endpoint,
+            new CreateEstimateRequest(customer.Id, property.Id, null, 100.01m, null,
                 new List<EstimateRoomInput> { Room() }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -460,13 +479,13 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
                     Room("Room B"),
                     Room("Room C"),
                 }));
-        var createdBody = await created.Content.ReadFromJsonAsync<EstimateResponse>();
+        var createdBody = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(createdBody);
 
         var getResponse = await client.GetAsync($"{Endpoint}/{createdBody!.Id}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
 
-        var body = await getResponse.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await getResponse.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(body);
         Assert.Equal(3, body!.Rooms.Count);
         Assert.Equal(new[] { "Room A", "Room B", "Room C" },
@@ -514,7 +533,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
                     Room("Modify",  10m, 10m, 0m,  laborRate: 3m, materialRate: 1m),
                     Room("Delete",  10m, 10m, 0m,  laborRate: 3m, materialRate: 1m),
                 }));
-        var initialBody = await initial.Content.ReadFromJsonAsync<EstimateResponse>();
+        var initialBody = await initial.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(initialBody);
 
         var keep = initialBody!.Rooms.First(r => r.Name == "Keep");
@@ -532,7 +551,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var putResponse = await client.PutAsJsonAsync($"{Endpoint}/{initialBody.Id}", update);
         Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
 
-        var body = await putResponse.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await putResponse.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
         Assert.NotNull(body);
         Assert.Equal(3, body!.Rooms.Count);
         Assert.DoesNotContain(body.Rooms, r => r.Name == "Delete");
@@ -556,33 +575,34 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
     }
 
     [Fact]
-    public async Task Put_RecalculatesTotalsFromNewRoomsAndTax()
+    public async Task Put_RecalculatesTotalsFromNewRoomsAndTaxRate()
     {
         var (_, sub, customer, property) = await SeedFullTenantAsync();
         var client = ClientFor(sub);
-
-        var initial = await client.PostAsJsonAsync(
-            Endpoint,
+        
+        var initial = await client.PostAsJsonAsync(Endpoint,
             CreateRequest(customer.Id, property.Id,
                 rooms: Room("Small", 5m, 5m, 0m, laborRate: 2m, materialRate: 1m)));
-        var initialBody = await initial.Content.ReadFromJsonAsync<EstimateResponse>();
-        Assert.Equal(75m, initialBody!.Total); // 25 * (2+1)
+        var initialBody = await initial.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+        Assert.Equal(75m, initialBody!.Total); // 25 * (2+1), rate 0
 
+        // Subtotal 1732.5 @ 10% → tax 173.25 → total 1905.75
         var update = new UpdateEstimateRequest(
-            customer.Id, property.Id, null, 100m, null,
+            customer.Id, property.Id, null, 10m, null,
             new List<EstimateRoomInput>
             {
                 Room("Living Room", 20m, 15m, 10m, laborRate: 4m, materialRate: 1.25m),
             });
 
         var putResponse = await client.PutAsJsonAsync($"{Endpoint}/{initialBody.Id}", update);
-        var body = await putResponse.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await putResponse.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
 
         Assert.Equal(1320m, body!.LaborSubtotal);
         Assert.Equal(412.5m, body.MaterialSubtotal);
         Assert.Equal(1732.5m, body.Subtotal);
-        Assert.Equal(100m, body.Tax);
-        Assert.Equal(1832.5m, body.Total);
+        Assert.Equal(10m, body.TaxRate);
+        Assert.Equal(173.25m, body.Tax);
+        Assert.Equal(1905.75m, body.Total);
     }
 
     [Theory]
@@ -598,7 +618,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var client = ClientFor(sub);
 
         var update = new UpdateEstimateRequest(
-            customer.Id, property.Id, null, 999m, "should not persist",
+            customer.Id, property.Id, null, 9.99m, "should not persist",
             new List<EstimateRoomInput> { Room() });
 
         var response = await client.PutAsJsonAsync($"{Endpoint}/{locked.Id}", update);
@@ -610,6 +630,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal(status, reread.Status);
         Assert.Empty(reread.Rooms);
         Assert.Null(reread.Notes);
+        Assert.Equal(0m, reread.TaxRate);
         Assert.Equal(0m, reread.Tax);
     }
 
@@ -645,7 +666,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var created = await client.PostAsJsonAsync(
             Endpoint,
             CreateRequest(customer.Id, property.Id, rooms: Room()));
-        var body = await created.Content.ReadFromJsonAsync<EstimateResponse>();
+        var body = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
 
         var badUpdate = new UpdateEstimateRequest(
             Guid.NewGuid(), property.Id, null, 0m, null,
@@ -668,8 +689,8 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
             await SeedEstimateAsync(companyB, customerB.Id, propertyB.Id,
                 number: $"EST-B-{i:D4}");
 
-        var listA = await ClientFor(subA).GetFromJsonAsync<EstimateListResponse>(Endpoint);
-        var listB = await ClientFor(subB).GetFromJsonAsync<EstimateListResponse>(Endpoint);
+        var listA = await ClientFor(subA).GetFromJsonAsync<EstimateListResponse>(Endpoint, TestJson.Options);
+        var listB = await ClientFor(subB).GetFromJsonAsync<EstimateListResponse>(Endpoint, TestJson.Options);
 
         Assert.Equal(3, listA!.Total);
         Assert.All(listA.Items, i => Assert.StartsWith("EST-A-", i.EstimateNumber));
@@ -694,12 +715,12 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         var client = ClientFor(sub);
 
         var drafts = await client.GetFromJsonAsync<EstimateListResponse>(
-            $"{Endpoint}?status={EstimateStatus.Draft}");
+            $"{Endpoint}?status={EstimateStatus.Draft}", TestJson.Options);
         Assert.Equal(2, drafts!.Total);
         Assert.All(drafts.Items, i => Assert.Equal(EstimateStatus.Draft, i.Status));
 
         var sent = await client.GetFromJsonAsync<EstimateListResponse>(
-            $"{Endpoint}?status={EstimateStatus.Sent}");
+            $"{Endpoint}?status={EstimateStatus.Sent}", TestJson.Options);
         Assert.Equal(1, sent!.Total);
         Assert.Equal("EST-S-1", sent.Items[0].EstimateNumber);
     }
@@ -721,9 +742,9 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
 
         var client = ClientFor(sub);
         var page1 = await client.GetFromJsonAsync<EstimateListResponse>(
-            $"{Endpoint}?page=1&pageSize=10");
+            $"{Endpoint}?page=1&pageSize=10", TestJson.Options);
         var page2 = await client.GetFromJsonAsync<EstimateListResponse>(
-            $"{Endpoint}?page=2&pageSize=10");
+            $"{Endpoint}?page=2&pageSize=10", TestJson.Options);
 
         Assert.NotNull(page1);
         Assert.NotNull(page2);
@@ -764,7 +785,7 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
                 new CreateEstimateRequest(cust, prop, null, 0m, null,
                     new List<EstimateRoomInput> { Room() }));
             Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-            return (await res.Content.ReadFromJsonAsync<EstimateResponse>())!;
+            return (await res.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options))!;
         }
     }
 }

@@ -31,7 +31,7 @@ public sealed class EstimateService(
             Status = EstimateStatus.Draft,
             CreatedDate = now,
             ExpirationDate = request.ExpirationDate,
-            Tax = request.Tax,
+            TaxRate = request.TaxRate,
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
             UpdatedAt = now
         };
@@ -65,7 +65,7 @@ public sealed class EstimateService(
         estimate.CustomerId = request.CustomerId;
         estimate.PropertyId = request.PropertyId;
         estimate.ExpirationDate = request.ExpirationDate;
-        estimate.Tax = request.Tax;
+        estimate.TaxRate = request.TaxRate;
         estimate.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
         estimate.UpdatedAt = timeProvider.GetUtcNow();
 
@@ -231,7 +231,7 @@ public sealed class EstimateService(
         var roomPricings = estimate.Rooms.Select(r =>
             new RoomPricing(r.BillableSquareFeet, r.LaborRatePerSqFt, r.MaterialRatePerSqFt));
 
-        var pricing = EstimatePricing.Calculate(roomPricings, estimate.Tax);
+        var pricing = EstimatePricing.Calculate(roomPricings, estimate.TaxRate);
 
         estimate.LaborSubtotal = pricing.LaborSubtotal;
         estimate.MaterialSubtotal = pricing.MaterialSubtotal;
@@ -273,6 +273,7 @@ public sealed class EstimateService(
             e.UpdatedAt,
             e.LaborSubtotal,
             e.MaterialSubtotal,
+            e.TaxRate,
             e.Tax,
             e.LaborSubtotal + e.MaterialSubtotal,
             e.Total,

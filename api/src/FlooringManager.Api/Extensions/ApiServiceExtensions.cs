@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FlooringManager.Api.HealthChecks;
 using FlooringManager.Api.Middleware;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -12,7 +13,11 @@ public static class ApiServiceExtensions
     /// </summary>
     public static IServiceCollection AddApiServices(this IServiceCollection services)
     {
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(o =>
+            {
+                o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
         services.AddOpenApi();
 
         services.AddProblemDetails();

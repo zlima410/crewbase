@@ -15,6 +15,7 @@ public sealed class Estimate
 
     public decimal LaborSubtotal { get; set; }
     public decimal MaterialSubtotal { get; set; }
+    public decimal TaxRate { get; set; }
     public decimal Tax { get; set; }
     public decimal Total { get; set; }
 

@@ -8,17 +8,18 @@ public sealed class EstimatePricingTests
     public void SingleRoom_Subtotal_MatchesRoomTotal()
     {
         var room = new RoomPricing(billableSquareFeet: 330m, laborRatePerSqFt: 4m, materialRatePerSqFt: 1.25m);
-        var pricing = EstimatePricing.Calculate(new[] { room }, tax: 0m);
+        var pricing = EstimatePricing.Calculate(new[] { room }, taxRate: 0m);
 
         Assert.Equal(1320m, pricing.LaborSubtotal);
         Assert.Equal(412.5m, pricing.MaterialSubtotal);
         Assert.Equal(1732.5m, pricing.Subtotal);
         Assert.Equal(1732.5m, pricing.Total);
         Assert.Equal(0m, pricing.Tax);
+        Assert.Equal(0m, pricing.TaxRate);
     }
 
     [Fact]
-    public void MultipleRooms_SumsPerCategory()
+    public void MultipleRooms_SumsPerCategory_AppliesTaxRate()
     {
         var rooms = new[]
         {
@@ -27,59 +28,67 @@ public sealed class EstimatePricingTests
             new RoomPricing(80m,  6m, 0.5m),  // labor 480,  material 40,  total 520
         };
 
-        var pricing = EstimatePricing.Calculate(rooms, tax: 100m);
+        // Subtotal 3070; 10% → tax 307; total 3377
+        var pricing = EstimatePricing.Calculate(rooms, taxRate: 10m);
 
         Assert.Equal(2430m, pricing.LaborSubtotal);      // 1200+750+480
         Assert.Equal(640m, pricing.MaterialSubtotal);    // 300+300+40
         Assert.Equal(3070m, pricing.Subtotal);
-        Assert.Equal(100m, pricing.Tax);
-        Assert.Equal(3170m, pricing.Total);
+        Assert.Equal(10m, pricing.TaxRate);
+        Assert.Equal(307m, pricing.Tax);
+        Assert.Equal(3377m, pricing.Total);
     }
 
     [Fact]
     public void EmptyRooms_ProduceZeroSubtotals()
     {
-        var pricing = EstimatePricing.Calculate(Array.Empty<RoomPricing>(), tax: 0m);
+        var pricing = EstimatePricing.Calculate(Array.Empty<RoomPricing>(), taxRate: 8.25m);
 
         Assert.Equal(0m, pricing.LaborSubtotal);
         Assert.Equal(0m, pricing.MaterialSubtotal);
         Assert.Equal(0m, pricing.Subtotal);
+        Assert.Equal(8.25m, pricing.TaxRate);
+        Assert.Equal(0m, pricing.Tax);
         Assert.Equal(0m, pricing.Total);
     }
 
     [Fact]
     public void Empty_Helper_Matches_ExplicitEmpty()
     {
-        var a = EstimatePricing.Empty(tax: 12.34m);
-        var b = EstimatePricing.Calculate(Array.Empty<RoomPricing>(), tax: 12.34m);
+        var a = EstimatePricing.Empty(taxRate: 5m);
+        var b = EstimatePricing.Calculate(Array.Empty<RoomPricing>(), taxRate: 5m);
 
         Assert.Equal(a, b);
-        Assert.Equal(12.34m, a.Total);
+        Assert.Equal(5m, a.TaxRate);
+        Assert.Equal(0m, a.Total);
     }
 
     [Fact]
-    public void Tax_IsAddedToSubtotal_ProducingTotal()
+    public void Tax_IsAddedToSubtotalTimesRateOver100()
     {
         var rooms = new[] { new RoomPricing(100m, 5m, 2m) };
-        var pricing = EstimatePricing.Calculate(rooms, tax: 56.75m);
+        var pricing = EstimatePricing.Calculate(rooms, taxRate: 8.25m);
 
         Assert.Equal(700m, pricing.Subtotal);
-        Assert.Equal(56.75m, pricing.Tax);
-        Assert.Equal(756.75m, pricing.Total);
+        Assert.Equal(8.25m, pricing.TaxRate);
+        Assert.Equal(57.75m, pricing.Tax);      // 700 * 0.0825
+        Assert.Equal(757.75m, pricing.Total);
     }
 
-    [Fact]
-    public void Negative_Tax_Throws()
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(100.01)]
+    public void Invalid_TaxRate_Throws(decimal taxRate)
     {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => EstimatePricing.Calculate(Array.Empty<RoomPricing>(), tax: -0.01m));
+            () => EstimatePricing.Calculate(Array.Empty<RoomPricing>(), taxRate));
     }
 
     [Fact]
     public void Null_Rooms_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => EstimatePricing.Calculate(null!, tax: 0m));
+            () => EstimatePricing.Calculate(null!, taxRate: 0m));
     }
 
     [Fact]
@@ -92,7 +101,7 @@ public sealed class EstimatePricingTests
             new RoomPricing(1m, 0.3m, 0m),
         };
 
-        var pricing = EstimatePricing.Calculate(rooms, tax: 0m);
+        var pricing = EstimatePricing.Calculate(rooms, taxRate: 0m);
         Assert.Equal(0.6m, pricing.LaborSubtotal);
         Assert.Equal(0.6m, pricing.Total);
     }
@@ -101,8 +110,8 @@ public sealed class EstimatePricingTests
     public void SameInputs_ProduceSamePricing()
     {
         var rooms = new[] { new RoomPricing(200m, 4m, 1m) };
-        var a = EstimatePricing.Calculate(rooms, tax: 25m);
-        var b = EstimatePricing.Calculate(rooms, tax: 25m);
+        var a = EstimatePricing.Calculate(rooms, taxRate: 7.5m);
+        var b = EstimatePricing.Calculate(rooms, taxRate: 7.5m);
 
         Assert.Equal(a, b);
     }
@@ -121,13 +130,16 @@ public sealed class EstimatePricingTests
             new RoomPricing(hallway.BillableSquareFeet, 5m, 1.5m),
         };
 
-        var pricing = EstimatePricing.Calculate(rooms, tax: 50m);
+        var pricing = EstimatePricing.Calculate(rooms, taxRate: 10m);
 
         // Living: 1320 labor, 412.5 material
         // Hallway: 67.2 × 5 = 336 labor, 67.2 × 1.5 = 100.8 material
+        // Subtotal 2169.3; 10% → tax 216.93; total 2386.23
         Assert.Equal(1656m, pricing.LaborSubtotal);      // 1320 + 336
         Assert.Equal(513.3m, pricing.MaterialSubtotal);  // 412.5 + 100.8
         Assert.Equal(2169.3m, pricing.Subtotal);
-        Assert.Equal(2219.3m, pricing.Total);
+        Assert.Equal(10m, pricing.TaxRate);
+        Assert.Equal(216.93m, pricing.Tax);
+        Assert.Equal(2386.23m, pricing.Total);
     }
 }

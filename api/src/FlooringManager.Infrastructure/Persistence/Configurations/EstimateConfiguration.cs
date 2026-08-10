@@ -20,6 +20,7 @@ public sealed class EstimateConfiguration : IEntityTypeConfiguration<Estimate>
 
         b.Property(x => x.LaborSubtotal).HasPrecision(18, 4);
         b.Property(x => x.MaterialSubtotal).HasPrecision(18, 4);
+        b.Property(x => x.TaxRate).HasPrecision(9, 4);
         b.Property(x => x.Tax).HasPrecision(18, 4);
         b.Property(x => x.Total).HasPrecision(18, 4);
 
