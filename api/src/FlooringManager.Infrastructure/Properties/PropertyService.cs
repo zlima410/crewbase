@@ -1,9 +1,8 @@
-using System.Data;
 using FlooringManager.Application.Auth;
+using FlooringManager.Application.Common;
 using FlooringManager.Application.Properties;
 using FlooringManager.Domain.Properties;
 using FlooringManager.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.EntityFrameworkCore;
 
 namespace FlooringManager.Infrastructure.Properties;
@@ -12,11 +11,12 @@ public sealed class PropertyService(ApplicationDbContext db, ICurrentUserService
 {
     public async Task<PropertyResponse?> CreateForCustomerAsync(Guid customerId, CreatePropertyRequest request, CancellationToken ct)
     {
-        var user = await RequireUserAsync(ct);
+        var user = await currentUserService.RequireAsync(ct);
 
         var customerExists = await db.Customers
             .AsNoTracking()
-            .AnyAsync(c => c.Id == customerId && c.CompanyId == user.CompanyId, ct);
+            .ForCompany(user.CompanyId)
+            .AnyAsync(c => c.Id == customerId, ct);
 
         if (!customerExists) return null;
 
@@ -29,7 +29,7 @@ public sealed class PropertyService(ApplicationDbContext db, ICurrentUserService
             City = request.City.Trim(),
             State = request.State.Trim(),
             PostalCode = request.PostalCode.Trim(),
-            AccessNotes = string.IsNullOrWhiteSpace(request.AccessNotes) ? null : request.AccessNotes.Trim(),
+            AccessNotes = OptionalText.Normalize(request.AccessNotes),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -42,22 +42,24 @@ public sealed class PropertyService(ApplicationDbContext db, ICurrentUserService
 
     public async Task<PropertyResponse?> GetAsync(Guid id, CancellationToken ct)
     {
-        var user = await RequireUserAsync(ct);
+        var user = await currentUserService.RequireAsync(ct);
 
         return await db.Properties
             .AsNoTracking()
-            .Where(p => p.Id == id && p.Customer.CompanyId == user.CompanyId)
+            .ForCompany(user.CompanyId)
+            .Where(p => p.Id == id)
             .Select(p => new PropertyResponse(p.Id, p.CustomerId, p.StreetAddress, p.City, p.State, p.PostalCode, p.AccessNotes, p.CreatedAt, p.UpdatedAt))
             .FirstOrDefaultAsync(ct);
     }
 
     public async Task<IReadOnlyList<PropertyResponse>> ListForCustomerAsync(Guid customerId, CancellationToken ct)
     {
-        var user = await RequireUserAsync(ct);
+        var user = await currentUserService.RequireAsync(ct);
 
         return await db.Properties
             .AsNoTracking()
-            .Where(p => p.CustomerId == customerId && p.Customer.CompanyId == user.CompanyId)
+            .ForCompany(user.CompanyId)
+            .Where(p => p.CustomerId == customerId)
             .OrderBy(p => p.CreatedAt)
             .Select(p => new PropertyResponse(
                 p.Id, p.CustomerId, p.StreetAddress, p.City, p.State,
@@ -67,11 +69,11 @@ public sealed class PropertyService(ApplicationDbContext db, ICurrentUserService
 
     public async Task<PropertyResponse?> UpdateAsync(Guid id, UpdatePropertyRequest request, CancellationToken ct)
     {
-        var user = await RequireUserAsync(ct);
+        var user = await currentUserService.RequireAsync(ct);
 
         var property = await db.Properties
-            .Where(p => p.Id == id && p.Customer.CompanyId == user.CompanyId)
-            .FirstOrDefaultAsync(ct);
+            .ForCompany(user.CompanyId)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
 
         if (property is null) return null;
 
@@ -79,15 +81,12 @@ public sealed class PropertyService(ApplicationDbContext db, ICurrentUserService
         property.City = request.City.Trim();
         property.State = request.State.Trim();
         property.PostalCode = request.PostalCode.Trim();
-        property.AccessNotes = string.IsNullOrWhiteSpace(request.AccessNotes) ? null : request.AccessNotes.Trim();
+        property.AccessNotes = OptionalText.Normalize(request.AccessNotes);
         property.UpdatedAt = timeProvider.GetUtcNow();
-        
+
         await db.SaveChangesAsync(ct);
         return ToResponse(property);
     }
-
-    private async Task<CurrentUser> RequireUserAsync(CancellationToken ct) =>
-        await currentUserService.GetAsync(ct) ?? throw new UnauthorizedAccessException("No provisioned user for the current token.");
 
     private static PropertyResponse ToResponse(Property p) => new(p.Id, p.CustomerId, p.StreetAddress, p.City, p.State, p.PostalCode, p.AccessNotes, p.CreatedAt, p.UpdatedAt);
 }

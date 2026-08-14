@@ -547,6 +547,7 @@ fastlane/test_output
 hardwood-flooring-job-manager-mvp.md
 product-backlog.md
 post-mvp-backlog.md
+contractor-validation-interview.md
 
 **/appsettings.Secrets.json
 **/appsettings.*.local.json

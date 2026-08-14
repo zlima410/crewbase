@@ -159,8 +159,12 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         WorkType work = WorkType.NewInstallation,
         decimal laborRate = 4m,
         decimal materialRate = 1.25m,
-        Guid? id = null) =>
-        new(id, name, length, width, wastePct, flooring, work, laborRate, materialRate);
+        Guid? id = null,
+        InstallationMethod? installation = null,
+        FinishType? finish = null,
+        string? notes = null) =>
+        new(id, name, length, width, wastePct, flooring, work, laborRate, materialRate,
+            installation, finish, notes);
 
     private static CreateEstimateRequest CreateRequest(
         Guid customerId,
@@ -491,6 +495,168 @@ public sealed class EstimatesEndpointTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal(new[] { "Room A", "Room B", "Room C" },
             body.Rooms.Select(r => r.Name));
         Assert.Equal(new[] { 0, 1, 2 }, body.Rooms.Select(r => r.Position));
+    }
+
+    [Fact]
+    public async Task Post_RoundTripsInstallationMethodAndFinishType()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var created = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id,
+                rooms: new[]
+                {
+                    Room("Kitchen",
+                        installation: InstallationMethod.GlueDown,
+                        finish: FinishType.WaterBased,
+                        notes: "Rubio Monocoat, Chocolate"),
+                }));
+        var createdBody = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+        Assert.NotNull(createdBody);
+
+        // Re-read rather than trusting the create response, so a value that was never
+        // persisted cannot pass.
+        var getResponse = await client.GetAsync($"{Endpoint}/{createdBody!.Id}");
+        var body = await getResponse.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+
+        var room = Assert.Single(body!.Rooms);
+        Assert.Equal(InstallationMethod.GlueDown, room.InstallationMethod);
+        Assert.Equal(FinishType.WaterBased, room.FinishType);
+        Assert.Equal("Rubio Monocoat, Chocolate", room.Notes);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Post_BlankRoomNotes_StoredAsNull(string? notes)
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var created = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id, rooms: Room("Kitchen", notes: notes)));
+        var body = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+
+        // Whitespace-only input must not become a "present but empty" note, or every
+        // consumer has to special-case it.
+        Assert.Null(Assert.Single(body!.Rooms).Notes);
+    }
+
+    [Fact]
+    public async Task Post_RoomNotes_AreTrimmed()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var created = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id,
+                rooms: Room("Kitchen", notes: "  matte sheen  ")));
+        var body = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+
+        Assert.Equal("matte sheen", Assert.Single(body!.Rooms).Notes);
+    }
+
+    [Fact]
+    public async Task Post_RoomNotesOverMaxLength_Returns400()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var response = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id,
+                rooms: Room("Kitchen", notes: new string('x', 2001))));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_OmittingFlooringDetail_LeavesItUnset()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var created = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id, rooms: Room()));
+        var body = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+
+        // Both fields are optional, so a room priced without them must stay null
+        // rather than being defaulted to the first enum member.
+        var room = Assert.Single(body!.Rooms);
+        Assert.Null(room.InstallationMethod);
+        Assert.Null(room.FinishType);
+    }
+
+    [Fact]
+    public async Task Put_OmittingFlooringDetail_ClearsIt()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        var initial = await client.PostAsJsonAsync(
+            Endpoint,
+            CreateRequest(customer.Id, property.Id,
+                rooms: new[]
+                {
+                    Room("Kitchen",
+                        installation: InstallationMethod.NailDown,
+                        finish: FinishType.OilBased,
+                        notes: "site finished"),
+                }));
+        var initialBody = await initial.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+        var roomId = initialBody!.Rooms.Single().Id;
+
+        var update = new UpdateEstimateRequest(
+            customer.Id, property.Id, null, 0m, null,
+            new List<EstimateRoomInput> { Room("Kitchen", id: roomId) });
+
+        var putResponse = await client.PutAsJsonAsync($"{Endpoint}/{initialBody.Id}", update);
+        Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
+
+        var body = await putResponse.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+        var room = Assert.Single(body!.Rooms);
+        Assert.Null(room.InstallationMethod);
+        Assert.Null(room.FinishType);
+        Assert.Null(room.Notes);
+    }
+
+    [Fact]
+    public async Task Post_UnknownFlooringDetailValue_Returns400()
+    {
+        var (_, sub, customer, property) = await SeedFullTenantAsync();
+        var client = ClientFor(sub);
+
+        // Sent as raw JSON: the typed DTO cannot express a value outside the enum,
+        // and an unmapped string must not silently land as 0.
+        var response = await client.PostAsJsonAsync(Endpoint, new
+        {
+            customerId = customer.Id,
+            propertyId = property.Id,
+            taxRate = 0m,
+            rooms = new[]
+            {
+                new
+                {
+                    name = "Kitchen",
+                    lengthFeet = 10m,
+                    widthFeet = 10m,
+                    wastePercentage = 0m,
+                    flooringType = "SolidHardwood",
+                    workType = "NewInstallation",
+                    laborRatePerSqFt = 3m,
+                    materialRatePerSqFt = 1m,
+                    installationMethod = "Bogus",
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

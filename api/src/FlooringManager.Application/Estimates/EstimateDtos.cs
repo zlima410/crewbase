@@ -12,7 +12,12 @@ public sealed record EstimateRoomInput(
     FlooringType FlooringType,
     WorkType WorkType,
     [Range(0, 10_000)] decimal LaborRatePerSqFt,
-    [Range(0, 10_000)] decimal MaterialRatePerSqFt);
+    [Range(0, 10_000)] decimal MaterialRatePerSqFt,
+    // Optional, and last so existing callers are unaffected. Omitting them clears
+    // them, which is what a room-list replacement should do.
+    InstallationMethod? InstallationMethod = null,
+    FinishType? FinishType = null,
+    [MaxLength(2000)] string? Notes = null);
 
 public sealed record CreateEstimateRequest(
     [Required] Guid CustomerId,
@@ -41,6 +46,9 @@ public sealed record EstimateRoomResponse(
     decimal BillableSquareFeet,
     FlooringType FlooringType,
     WorkType WorkType,
+    InstallationMethod? InstallationMethod,
+    FinishType? FinishType,
+    string? Notes,
     decimal LaborRatePerSqFt,
     decimal MaterialRatePerSqFt,
     decimal LaborCost,

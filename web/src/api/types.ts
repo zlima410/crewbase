@@ -51,6 +51,8 @@ export type UpdatePropertyRequest = CreatePropertyRequest;
 export type EstimateStatus = "Draft" | "Sent" | "Accepted" | "Rejected" | "Expired";
 export type FlooringType = "SolidHardwood" | "EngineeredHardwood" | "ExistingHardwood" | "Other";
 export type WorkType = "NewInstallation" | "Refinishing" | "Repair" | "ScreenAndRecoat" | "Removal";
+export type InstallationMethod = "NailDown" | "GlueDown" | "Floating" | "Existing" | "Unknown";
+export type FinishType = "WaterBased" | "OilBased" | "Unfinished" | "PreFinished" | "Other";
 
 export type EstimateRoom = {
   id: string;
@@ -62,6 +64,9 @@ export type EstimateRoom = {
   billableSquareFeet: number;
   flooringType: FlooringType;
   workType: WorkType;
+  installationMethod: InstallationMethod | null;
+  finishType: FinishType | null;
+  notes: string | null;
   laborRatePerSqFt: number;
   materialRatePerSqFt: number;
   laborCost: number;
@@ -99,6 +104,9 @@ export type EstimateRoomInput = {
   wastePercentage: number;
   flooringType: FlooringType;
   workType: WorkType;
+  installationMethod?: InstallationMethod | null;
+  finishType?: FinishType | null;
+  notes?: string | null;
   laborRatePerSqFt: number;
   materialRatePerSqFt: number;
 };

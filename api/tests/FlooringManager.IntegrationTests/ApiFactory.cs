@@ -1,88 +1,36 @@
-using System.Security.Cryptography;
 using FlooringManager.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 
 namespace FlooringManager.IntegrationTests;
 
-public sealed class ApiFactory : WebApplicationFactory<Program>
+/// <summary>
+/// Fast in-memory SQLite host for the bulk of the endpoint suite.
+/// </summary>
+/// <remarks>
+/// Each test class gets its own factory, and therefore its own connection and its own
+/// isolated database. Behaviour that genuinely depends on Postgres (case-insensitive
+/// search, row locking behind number allocation, migrations actually applying) is
+/// covered by <see cref="PostgresApiFactory"/> instead.
+/// </remarks>
+public class ApiFactory : ApiFactoryBase
 {
-    public const string Issuer = "https://test.supabase.local/auth/v1";
-    public const string Audience = "authenticated";
-    public const string TestKeyId = "test-key-1";
+    private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
-    private readonly SqliteConnection _connection;
-    private readonly RSA _rsa;
+    public ApiFactory() => _connection.Open();
 
-    public RsaSecurityKey SigningKey { get; }
-
-    public ApiFactory()
+    protected override void ConfigureDatabase(IServiceCollection services)
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
-        Environment.SetEnvironmentVariable(
-            "ConnectionStrings__SupabaseDb",
-            "Host=placeholder;Database=placeholder;Username=x;Password=y");
-        Environment.SetEnvironmentVariable("Supabase__Issuer", Issuer);
-        Environment.SetEnvironmentVariable("Supabase__Audience", Audience);
-
-        _rsa = RSA.Create(2048);
-        SigningKey = new RsaSecurityKey(_rsa) { KeyId = TestKeyId };
-
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        services.AddDbContext<SqliteApplicationDbContext>(options => options.UseSqlite(_connection));
+        services.AddScoped<ApplicationDbContext>(sp => sp.GetRequiredService<SqliteApplicationDbContext>());
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        builder.ConfigureLogging(logging =>
-        {
-            logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
-            logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
-        });
-
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-            services.RemoveAll<DbContextOptions>();
-            services.RemoveAll<ApplicationDbContext>();
-            services.RemoveAll<IDbContextOptionsConfiguration<ApplicationDbContext>>();
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlite(_connection));
-
-            services.PostConfigure<JwtBearerOptions>(
-                JwtBearerDefaults.AuthenticationScheme,
-                o =>
-                {
-                    o.MetadataAddress = null!;
-                    o.ConfigurationManager = null!;
-                    o.Configuration = null;
-                    o.TokenValidationParameters.IssuerSigningKey = SigningKey;
-                    o.TokenValidationParameters.IssuerSigningKeys = null;
-                    o.TokenValidationParameters.IssuerSigningKeyResolver = null;
-                    o.TokenValidationParameters.ValidateIssuerSigningKey = true;
-                });
-
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.Database.EnsureCreated();
-        });
-    }
+    protected override void InitializeDatabase(ApplicationDbContext db) => db.Database.EnsureCreated();
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            _connection.Dispose();
-            _rsa.Dispose();
-        }
+        if (disposing) _connection.Dispose();
         base.Dispose(disposing);
     }
 }
