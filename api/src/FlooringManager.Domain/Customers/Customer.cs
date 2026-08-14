@@ -12,4 +12,6 @@ public sealed class Customer
     public string? Notes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+
+    public ICollection<Properties.Property> Properties { get; set; } = new List<Properties.Property>();
 }

@@ -13,7 +13,7 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
 {
     private const string Endpoint = "/api/v1/me";
 
-    private sealed record MeResponse(Guid UserId, Guid CompanyId, string Email, string Role);
+    private sealed record MeResponse(Guid UserId, Guid CompanyId, string FirstName, string LastName, string Email, string Role);
 
     private async Task<(Company company, User user)> SeedUserAsync(
         Guid authProviderUserId,
@@ -133,6 +133,8 @@ public sealed class MeEndpointTests(ApiFactory factory) : IClassFixture<ApiFacto
         Assert.NotNull(body);
         Assert.Equal(user.Id, body!.UserId);
         Assert.Equal(company.Id, body.CompanyId);
+        Assert.Equal(user.FirstName, body.FirstName);
+        Assert.Equal(user.LastName, body.LastName);
         Assert.Equal(user.Email, body.Email);
         Assert.Equal(nameof(UserRole.OfficeManager), body.Role);
     }
