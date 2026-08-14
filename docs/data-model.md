@@ -121,17 +121,23 @@ EstimateRoom
 - BillableSquareFeet
 - FlooringType          SolidHardwood | EngineeredHardwood | ExistingHardwood | Other
 - WorkType              NewInstallation | Refinishing | Repair | ScreenAndRecoat | Removal
+- InstallationMethod    NailDown | GlueDown | Floating | Existing | Unknown    (nullable)
+- FinishType            WaterBased | OilBased | Unfinished | PreFinished | Other  (nullable)
+- Notes                 (nullable, max 2000)
 - MaterialCostPerSqFt
 - LaborCostPerSqFt
 ```
 
-Optional MVP fields (may live on `EstimateRoom`/`JobRoom` or as free-text
-notes if not worth modeling yet):
+`InstallationMethod` and `FinishType` are optional — a room can be measured and
+priced without them, and on refinishing work the crew often cannot tell until
+they are on site. `null` means "not recorded"; `InstallationMethod.Unknown` is a
+stronger statement, meaning the existing floor was inspected and the method could
+not be identified.
 
-```text
-InstallationMethod      NailDown | GlueDown | Floating | Existing | Unknown
-FinishType               WaterBased | OilBased | Unfinished | PreFinished | Other
-```
+Both enums are deliberately coarse. The MVP does not model a materials catalog, so
+anything more specific than these categories — a particular stain or product line
+— goes in the room's `Notes`. Blank notes are normalized to `null` on write, so a
+cleared field and an omitted one are stored identically.
 
 **Calculations** (deterministic, unit-tested, server-authoritative):
 
@@ -273,12 +279,17 @@ doesn't exist (404), not reveal that a different company owns it (403).
 ## Conventions
 
 - **IDs:** UUID/GUID for all primary keys (see
-  [ADR-006](decisions/ADR-006-uuid-identifiers.md)). Human-readable numbers
-  (`EST-1001`, `JOB-1001`, `INV-1001`) exist only as a separate display field
+  [ADR-006](ADR-006-uuid-identifiers.md)). Human-readable numbers
+  (`EST-0001`, `JOB-0001`, `INV-0001`) exist only as a separate display field
   for customer-facing communication — they are never the primary key.
-- **Timestamps:** stored in UTC. Local-time conversion happens at the
-  application boundary only; a future `Company.TimeZone` setting can drive
-  display formatting. Do not scatter timezone math through the codebase.
+- **Document numbering:** allocated from `company_sequences`, keyed by
+  `(CompanyId, Prefix)`, through `ICompanySequenceAllocator` inside the caller's
+  transaction. Never derived from `COUNT(*)`, which races and reissues numbers
+  after a deletion. See [ADR-013](ADR-013-human-readable-numbering.md).
+- **Timestamps:** stored in UTC as `timestamptz`. Local-time conversion happens
+  at the application boundary only, driven by `Company.TimeZoneId` (an IANA
+  identifier). Do not scatter timezone math through the codebase. See
+  [ADR-012](ADR-012-scheduling-time-zones.md).
 - **Deletion:** prefer soft deletion or omit `DELETE` entirely in the MVP,
   particularly for `Customer` — historical records matter.
 - **Constraints:** enforce invariants at the database level where practical

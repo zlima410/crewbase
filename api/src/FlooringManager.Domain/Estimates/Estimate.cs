@@ -1,6 +1,8 @@
+using FlooringManager.Domain.Shared;
+
 namespace FlooringManager.Domain.Estimates;
 
-public sealed class Estimate
+public sealed class Estimate : ITenantOwned
 {
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }

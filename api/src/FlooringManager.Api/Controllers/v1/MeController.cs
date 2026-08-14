@@ -1,13 +1,15 @@
+using FlooringManager.Api.RateLimiting;
 using FlooringManager.Application.Auth;
-using FlooringManager.Domain.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace FlooringManager.Api.Controllers.v1;
 
 [ApiController]
 [Route("api/v1/me")]
 [Authorize]
+[EnableRateLimiting(RateLimitingServiceExtensions.IdentityPolicy)]
 public sealed class MeController(ICurrentUserService currentUser) : ControllerBase
 {
     [HttpGet]

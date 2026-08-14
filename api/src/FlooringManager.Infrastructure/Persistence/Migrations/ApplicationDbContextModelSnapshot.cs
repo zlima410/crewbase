@@ -49,6 +49,23 @@ namespace FlooringManager.Infrastructure.Persistence.Migrations
                     b.ToTable("companies", (string)null);
                 });
 
+            modelBuilder.Entity("FlooringManager.Domain.Companies.CompanySequence", b =>
+                {
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Prefix")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<int>("LastValue")
+                        .HasColumnType("integer");
+
+                    b.HasKey("CompanyId", "Prefix");
+
+                    b.ToTable("company_sequences", (string)null);
+                });
+
             modelBuilder.Entity("FlooringManager.Domain.Customers.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -177,7 +194,13 @@ namespace FlooringManager.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("EstimateId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("FinishType")
+                        .HasColumnType("integer");
+
                     b.Property<int>("FlooringType")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("InstallationMethod")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("LaborRatePerSqFt")
@@ -196,6 +219,10 @@ namespace FlooringManager.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<int>("Position")
                         .HasColumnType("integer");
@@ -312,6 +339,15 @@ namespace FlooringManager.Infrastructure.Persistence.Migrations
                     b.HasIndex("CompanyId");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("FlooringManager.Domain.Companies.CompanySequence", b =>
+                {
+                    b.HasOne("FlooringManager.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FlooringManager.Domain.Estimates.EstimateRoom", b =>

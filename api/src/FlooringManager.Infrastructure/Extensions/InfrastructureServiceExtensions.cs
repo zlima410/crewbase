@@ -1,8 +1,10 @@
 using FlooringManager.Application.Auth;
+using FlooringManager.Application.Common;
 using FlooringManager.Application.Customers;
 using FlooringManager.Application.Estimates;
 using FlooringManager.Application.Properties;
 using FlooringManager.Infrastructure.Auth;
+using FlooringManager.Infrastructure.Common;
 using FlooringManager.Infrastructure.Customers;
 using FlooringManager.Infrastructure.Estimates;
 using FlooringManager.Infrastructure.Persistence;
@@ -21,9 +23,11 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<ICompanySequenceAllocator, CompanySequenceAllocator>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IPropertyService, PropertyService>();
         services.AddScoped<IEstimateService, EstimateService>();
+        services.AddScoped<EstimateRoomSynchronizer>();
 
         return services;
     }

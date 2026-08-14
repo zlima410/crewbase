@@ -16,6 +16,12 @@ public sealed class EstimateRoomConfiguration : IEntityTypeConfiguration<Estimat
         b.Property(x => x.FlooringType).HasConversion<int>().IsRequired();
         b.Property(x => x.WorkType).HasConversion<int>().IsRequired();
 
+        // Nullable: absence is meaningful, so these are not defaulted server-side.
+        b.Property(x => x.InstallationMethod).HasConversion<int?>();
+        b.Property(x => x.FinishType).HasConversion<int?>();
+
+        b.Property(x => x.Notes).HasMaxLength(2000);
+
         b.Property(x => x.LengthFeet).HasPrecision(18, 4);
         b.Property(x => x.WidthFeet).HasPrecision(18, 4);
         b.Property(x => x.WastePercentage).HasPrecision(9, 4);

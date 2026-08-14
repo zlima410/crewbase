@@ -1,6 +1,8 @@
 using System.Text.Json;
 using FlooringManager.Api.Auth;
+using FlooringManager.Api.Cors;
 using FlooringManager.Api.Extensions;
+using FlooringManager.Api.RateLimiting;
 using FlooringManager.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -8,7 +10,6 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Logging: built-in providers only for MVP, configured via appsettings.json
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -18,10 +19,8 @@ builder.Services.AddInfrastructureServices();
 builder.Services.AddSupabaseDatabase(builder.Configuration);
 builder.Services.AddSupabaseAuth(builder.Configuration);
 
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .WithOrigins("http://localhost:5173")
-    .AllowAnyHeader()
-    .WithMethods("GET", "POST", "PUT", "OPTIONS")));
+builder.Services.AddWebClientCors(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 
@@ -34,17 +33,19 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 
-app.UseCors();
+app.UseCors(CorsServiceExtensions.PolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseRateLimiter();
 
 app.MapControllers();
 
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = WriteHealthCheckResponse
-});
+}).DisableRateLimiting();
 
 app.Run();
 

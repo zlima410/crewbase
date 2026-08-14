@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using FlooringManager.Application.Auth;
 using FlooringManager.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -14,12 +13,9 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor,
     {
         if (_cached is not null) return _cached;
 
-        var principal = httpContextAccessor.HttpContext?.User;
-        if (principal?.Identity?.IsAuthenticated != true) return null;
+        var subject = AuthClaims.SubjectId(httpContextAccessor.HttpContext?.User);
 
-        var subClaim = principal.FindFirst(ClaimTypes.NameIdentifier) ?? principal.FindFirst("sub");
-
-        if (!Guid.TryParse(subClaim?.Value, out var authUserId)) return null;
+        if (!Guid.TryParse(subject, out var authUserId)) return null;
 
         var user = await dbContext.Users
             .AsNoTracking()

@@ -1,6 +1,8 @@
+using FlooringManager.Domain.Shared;
+
 namespace FlooringManager.Domain.Customers;
 
-public sealed class Customer
+public sealed class Customer : ITenantOwned
 {
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }

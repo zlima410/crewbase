@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
@@ -10,7 +10,12 @@ import { Input } from "../../components/ui/input";
 import { CustomerPicker } from "./CustomerPicker";
 import { PropertyPicker } from "./PropertyPicker";
 import { RoomRow } from "./RoomRow";
-import { estimateSchema, type EstimateFormOutput, type EstimateFormValues } from "./estimateSchema";
+import {
+  estimateSchema,
+  UNSPECIFIED,
+  type EstimateFormOutput,
+  type EstimateFormValues,
+} from "./estimateSchema";
 import { estimateTotals, fmt } from "./pricingMath";
 import { useCreateEstimate, useEstimate, useUpdateEstimate } from "../../api/estimates";
 
@@ -21,6 +26,9 @@ const emptyRoom = (): EstimateFormValues["rooms"][number] => ({
   wastePercentage: 10,
   flooringType: "SolidHardwood",
   workType: "NewInstallation",
+  installationMethod: UNSPECIFIED,
+  finishType: UNSPECIFIED,
+  notes: "",
   laborRatePerSqFt: 0,
   materialRatePerSqFt: 0,
 });
@@ -56,9 +64,12 @@ export function EstimateBuilderPage() {
   } = methods;
   const { fields, append, remove } = useFieldArray({ control, name: "rooms" });
 
-  // Reset form when the estimate loads (edit mode)
+  const seededEstimateId = useRef<string | null>(null);
+
   useEffect(() => {
-    if (existing.data) {
+    if (existing.data && seededEstimateId.current !== existing.data.id) {
+      seededEstimateId.current = existing.data.id;
+
       reset({
         customerId: existing.data.customerId,
         propertyId: existing.data.propertyId,
@@ -72,6 +83,9 @@ export function EstimateBuilderPage() {
           wastePercentage: r.wastePercentage,
           flooringType: r.flooringType,
           workType: r.workType,
+          installationMethod: r.installationMethod ?? UNSPECIFIED,
+          finishType: r.finishType ?? UNSPECIFIED,
+          notes: r.notes ?? "",
           laborRatePerSqFt: r.laborRatePerSqFt,
           materialRatePerSqFt: r.materialRatePerSqFt,
         })),
@@ -121,7 +135,7 @@ export function EstimateBuilderPage() {
                     value={customerId}
                     onChange={(id) => {
                       setValue("customerId", id);
-                      setValue("propertyId", ""); // reset dependent field
+                      setValue("propertyId", "");
                     }}
                   />
                   {errors.customerId && <p className="text-destructive text-sm">{errors.customerId.message}</p>}

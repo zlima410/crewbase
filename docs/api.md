@@ -17,6 +17,18 @@
   an explicit request/response record. See "DTO Strategy" below.
 - **Errors:** standardized error shape (Problem Details). No stack traces,
   connection strings, or internal exception detail in any response.
+- **Rate limiting:** requests are budgeted per caller — by authenticated subject
+  where available, by remote IP otherwise — so one tenant cannot exhaust
+  another's allowance. Identity routes (`/api/v1/me`) get a tighter budget than
+  business routes. Exceeding a budget returns `429` with a `Retry-After` header
+  and the same Problem Details shape as every other error. Health checks are
+  exempt. Limits are configured under `RateLimiting` (see the README).
+- **CORS:** allowed origins are configured explicitly under
+  `Cors:AllowedOrigins`. Wildcards are rejected, and an empty list means
+  same-origin only.
+- **Document numbers:** `EST-0001` style numbers are per-company, sequential, and
+  gap-free; they are display values, never identifiers. Address resources by
+  UUID. See [ADR-013](ADR-013-human-readable-numbering.md).
 
 ## DTO Strategy
 
@@ -143,4 +155,4 @@ which can't be force-updated the way a web SPA can).
 
 - `data-model.md` — entity fields these DTOs are built from
 - `architecture.md` — where the API sits in the overall system
-- `decisions/ADR-004-rest-over-graphql.md` — why REST
+- `ADR-004-rest-over-graphql.md` — why REST

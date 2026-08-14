@@ -1,9 +1,10 @@
 import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import type { EstimateFormValues } from "./estimateSchema";
-import { billableSquareFeet, roomTotals, fmt } from "./pricingMath";
+import { UNSPECIFIED, type EstimateFormValues } from "./estimateSchema";
+import { roomPreview, fmt } from "./pricingMath";
 import { Trash2 } from "lucide-react";
 import { useFormContext, Controller } from "react-hook-form";
 import type { ReactNode } from "react";
@@ -13,14 +14,13 @@ export function RoomRow({ index, onRemove }: { index: number; onRemove: () => vo
   const row = watch(`rooms.${index}`);
   const errs = formState.errors.rooms?.[index];
 
-  const billable = row
-    ? billableSquareFeet(Number(row.lengthFeet) || 0, Number(row.widthFeet) || 0, Number(row.wastePercentage) || 0)
-    : 0;
-  const { laborCost, materialCost, roomTotal } = roomTotals(
-    billable,
-    Number(row?.laborRatePerSqFt) || 0,
-    Number(row?.materialRatePerSqFt) || 0,
-  );
+  const { billableSquareFeet, laborCost, materialCost, roomTotal } = roomPreview({
+    lengthFeet: Number(row?.lengthFeet) || 0,
+    widthFeet: Number(row?.widthFeet) || 0,
+    wastePercentage: Number(row?.wastePercentage) || 0,
+    laborRatePerSqFt: Number(row?.laborRatePerSqFt) || 0,
+    materialRatePerSqFt: Number(row?.materialRatePerSqFt) || 0,
+  });
 
   return (
     <div className="border rounded-md p-4 space-y-3">
@@ -37,7 +37,7 @@ export function RoomRow({ index, onRemove }: { index: number; onRemove: () => vo
         <NumField label="Waste %" name={`rooms.${index}.wastePercentage`} error={errs?.wastePercentage?.message} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Field label="Work type">
           <SelectField
             name={`rooms.${index}.workType`}
@@ -61,6 +61,32 @@ export function RoomRow({ index, onRemove }: { index: number; onRemove: () => vo
             ]}
           />
         </Field>
+        <Field label="Installation method">
+          <SelectField
+            name={`rooms.${index}.installationMethod`}
+            options={[
+              [UNSPECIFIED, "Not specified"],
+              ["NailDown", "Nail down"],
+              ["GlueDown", "Glue down"],
+              ["Floating", "Floating"],
+              ["Existing", "Existing floor"],
+              ["Unknown", "Unknown"],
+            ]}
+          />
+        </Field>
+        <Field label="Finish type">
+          <SelectField
+            name={`rooms.${index}.finishType`}
+            options={[
+              [UNSPECIFIED, "Not specified"],
+              ["WaterBased", "Water based"],
+              ["OilBased", "Oil based"],
+              ["Unfinished", "Unfinished"],
+              ["PreFinished", "Pre-finished"],
+              ["Other", "Other"],
+            ]}
+          />
+        </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -76,8 +102,16 @@ export function RoomRow({ index, onRemove }: { index: number; onRemove: () => vo
         />
       </div>
 
+      <Field label="Room notes" error={errs?.notes?.message}>
+        <Textarea
+          rows={2}
+          placeholder="Stain, product line, or anything the fields above don't cover"
+          {...register(`rooms.${index}.notes`)}
+        />
+      </Field>
+
       <div className="grid grid-cols-4 text-sm bg-muted/40 rounded p-2">
-        <Stat label="Billable" value={`${billable.toFixed(2)} sq ft`} />
+        <Stat label="Billable" value={`${billableSquareFeet.toFixed(2)} sq ft`} />
         <Stat label="Labor" value={fmt(laborCost)} />
         <Stat label="Material" value={fmt(materialCost)} />
         <Stat label="Room total" value={fmt(roomTotal)} bold />
@@ -122,7 +156,7 @@ function SelectField({
   name,
   options,
 }: {
-  name: `rooms.${number}.${"workType" | "flooringType"}`;
+  name: `rooms.${number}.${"workType" | "flooringType" | "installationMethod" | "finishType"}`;
   options: [string, string][];
 }) {
   const { control } = useFormContext<EstimateFormValues>();
@@ -132,7 +166,7 @@ function SelectField({
       name={name}
       render={({ field }) => (
         <Select value={field.value} onValueChange={field.onChange}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full min-w-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
