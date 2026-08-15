@@ -242,6 +242,7 @@ export function EstimateBuilderPage() {
                     try {
                       const job = await accept.mutateAsync(id);
                       toast.success(`Job ${job.jobNumber} created`);
+                      navigate(`/jobs/${job.id}`);
                     } catch (err) {
                       toast.error(err instanceof Error ? err.message : "Could not accept estimate");
                     }

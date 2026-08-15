@@ -32,6 +32,7 @@ public sealed class JobsEndpointTests(ApiFactory factory) : IClassFixture<ApiFac
             CompanyId = company.Id,
             FirstName = "Sarah",
             LastName = "Johnson",
+            Email = "sarah@example.com",
             Phone = "555-1234",
             CreatedAt = now,
             UpdatedAt = now
@@ -44,6 +45,7 @@ public sealed class JobsEndpointTests(ApiFactory factory) : IClassFixture<ApiFac
             City = "Portland",
             State = "OR",
             PostalCode = "97205",
+            AccessNotes = "Gate code 1234",
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -104,7 +106,22 @@ public sealed class JobsEndpointTests(ApiFactory factory) : IClassFixture<ApiFac
         Assert.Equal(created.Id, body!.Id);
         Assert.Equal(created.JobNumber, body.JobNumber);
         Assert.Equal(JobStatus.Scheduled, body.Status);
-        Assert.Single(body.Rooms);
+        Assert.Equal(customer.Id, body.CustomerId);
+        Assert.Equal("Sarah Johnson", body.CustomerName);
+        Assert.Equal("555-1234", body.CustomerPhone);
+        Assert.Equal("sarah@example.com", body.CustomerEmail);
+        Assert.Equal(property.Id, body.PropertyId);
+        Assert.Contains("123 Oak Lane", body.PropertyAddress);
+        Assert.Equal("Gate code 1234", body.PropertyAccessNotes);
+        Assert.Null(body.ScheduledStart);
+        Assert.Null(body.ActualStart);
+
+        var room = Assert.Single(body.Rooms);
+        Assert.Equal("Living Room", room.Name);
+        Assert.Equal(100m, room.SquareFeet);
+        Assert.Equal(100m, room.BillableSquareFeet);
+        Assert.Equal(FlooringType.SolidHardwood, room.FlooringType);
+        Assert.Equal(WorkType.NewInstallation, room.WorkType);
     }
 
     [Fact]

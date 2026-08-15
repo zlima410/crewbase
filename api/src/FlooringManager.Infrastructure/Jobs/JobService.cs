@@ -135,18 +135,21 @@ public sealed class JobService(
         var customer = await db.Customers
             .AsNoTracking()
             .Where(c => c.Id == job.CustomerId)
-            .Select(c => new { c.FirstName, c.LastName })
+            .Select(c => new { c.FirstName, c.LastName, c.Phone, c.Email })
             .FirstAsync(ct);
 
         var property = await db.Properties
             .AsNoTracking()
             .Where(p => p.Id == job.PropertyId)
-            .Select(p => new { p.StreetAddress, p.City, p.State, p.PostalCode })
+            .Select(p => new { p.StreetAddress, p.City, p.State, p.PostalCode, p.AccessNotes })
             .FirstAsync(ct);
 
         return JobMapper.ToResponse(
             job,
             $"{customer.FirstName} {customer.LastName}",
-            AddressText.Format(property.StreetAddress, property.City, property.State, property.PostalCode));
+            customer.Phone,
+            customer.Email,
+            AddressText.Format(property.StreetAddress, property.City, property.State, property.PostalCode),
+            property.AccessNotes);
     }
 }

@@ -162,8 +162,11 @@ export type Job = {
   estimateId: string;
   customerId: string;
   customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
   propertyId: string;
   propertyAddress: string;
+  propertyAccessNotes: string | null;
   description: string | null;
   internalNotes: string | null;
   customerNotes: string | null;

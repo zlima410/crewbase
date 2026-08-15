@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -234,6 +234,8 @@ function JobSection({
 }
 
 function JobsTable({ items }: { items: JobListItem[] }) {
+  const navigate = useNavigate();
+
   return (
     <Table>
       <TableHeader>
@@ -247,8 +249,20 @@ function JobsTable({ items }: { items: JobListItem[] }) {
       </TableHeader>
       <TableBody>
         {items.map((job) => (
-          <TableRow key={job.id}>
-            <TableCell>{job.jobNumber}</TableCell>
+          <TableRow
+            key={job.id}
+            className="cursor-pointer"
+            onClick={() => navigate(`/jobs/${job.id}`)}
+          >
+            <TableCell>
+              <Link
+                to={`/jobs/${job.id}`}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {job.jobNumber}
+              </Link>
+            </TableCell>
             <TableCell>{job.customerName}</TableCell>
             <TableCell>{job.propertyAddress}</TableCell>
             <TableCell>{formatDate(job.scheduledStart)}</TableCell>

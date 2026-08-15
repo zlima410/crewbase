@@ -219,8 +219,11 @@ public sealed class EstimateAcceptanceTests(ApiFactory factory) : IClassFixture<
         Assert.Equal(estimate.Id, job.EstimateId);
         Assert.Equal(customer.Id, job.CustomerId);
         Assert.Equal($"{customer.FirstName} {customer.LastName}", job.CustomerName);
+        Assert.Equal(customer.Phone, job.CustomerPhone);
+        Assert.Equal(customer.Email, job.CustomerEmail);
         Assert.Equal(property.Id, job.PropertyId);
         Assert.Contains(property.StreetAddress, job.PropertyAddress);
+        Assert.Null(job.PropertyAccessNotes);
         Assert.Equal("sand in place", job.Description);
         Assert.Null(job.InternalNotes);
         Assert.Null(job.ScheduledStart);

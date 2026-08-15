@@ -72,9 +72,10 @@ export function useAcceptEstimate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api<Job>(`/api/v1/estimates/${id}/accept`, { method: "POST" }),
-    onSuccess: (_job, id) => {
+    onSuccess: (job, id) => {
       qc.invalidateQueries({ queryKey: keys.all });
       qc.invalidateQueries({ queryKey: keys.detail(id) });
+      qc.setQueryData(jobKeys.detail(job.id), job);
       qc.invalidateQueries({ queryKey: jobKeys.all });
     },
   });

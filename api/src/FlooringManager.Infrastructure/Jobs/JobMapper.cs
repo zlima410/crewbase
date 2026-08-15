@@ -5,7 +5,13 @@ namespace FlooringManager.Infrastructure.Jobs;
 
 public static class JobMapper
 {
-    public static JobResponse ToResponse(Job job, string customerName, string propertyAddress) =>
+    public static JobResponse ToResponse(
+        Job job,
+        string customerName,
+        string customerPhone,
+        string? customerEmail,
+        string propertyAddress,
+        string? propertyAccessNotes) =>
         new(
             job.Id,
             job.JobNumber,
@@ -13,8 +19,11 @@ public static class JobMapper
             job.EstimateId,
             job.CustomerId,
             customerName,
+            customerPhone,
+            customerEmail,
             job.PropertyId,
             propertyAddress,
+            propertyAccessNotes,
             job.Description,
             job.InternalNotes,
             job.CustomerNotes,
