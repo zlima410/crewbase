@@ -90,6 +90,7 @@ GET  /api/v1/estimates/{id}
 PUT  /api/v1/estimates/{id}
 
 POST /api/v1/estimates/{id}/rooms
+POST /api/v1/estimates/{id}/send     # Draft → Sent (idempotent if already Sent)
 POST /api/v1/estimates/{id}/accept   # transactional: Estimate → Accepted, Job created, rooms copied
 ```
 
@@ -137,7 +138,9 @@ over-invest here for MVP.
 
 - **Estimate acceptance is transactional.** `Estimate.Status → Accepted`,
   `Job` created, `EstimateRoom → JobRoom` copy all succeed together or none
-  do. A retry/double-click must not create a second job.
+  do. Only a `Sent` estimate can be accepted (`409` otherwise). The first
+  success returns `201` with the job; a retry returns `200` with the same job
+  and must not create a second one. See [ADR-011](ADR-011-estimate-acceptance-transaction.md).
 - **Job status transitions are constrained**, not free-form:
   `Scheduled → InProgress → Waiting/Completed`, etc. Invalid transitions are
   rejected, not silently accepted.

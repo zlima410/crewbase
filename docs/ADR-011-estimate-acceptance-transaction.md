@@ -1,6 +1,6 @@
 # ADR-011: Estimate acceptance creates the job in one idempotent transaction
 
-**Status:** Accepted (not yet implemented — decided ahead of Phase 5)
+**Status:** Accepted (implemented)
 **Revisit when:** acceptance needs to trigger anything outside the database
 (email, SMS, calendar sync), at which point the outbox note below stops being
 optional.

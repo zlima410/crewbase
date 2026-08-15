@@ -1,9 +1,11 @@
+import * as React from "react";
 import { useEffect, useRef } from "react";
-import { FormProvider, useFieldArray, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Textarea } from "../../components/ui/textarea";
 import { Input } from "../../components/ui/input";
@@ -17,7 +19,7 @@ import {
   type EstimateFormValues,
 } from "./estimateSchema";
 import { estimateTotals, fmt } from "./pricingMath";
-import { useCreateEstimate, useEstimate, useUpdateEstimate } from "../../api/estimates";
+import { useAcceptEstimate, useCreateEstimate, useEstimate, useSendEstimate, useUpdateEstimate } from "../../api/estimates";
 
 const emptyRoom = (): EstimateFormValues["rooms"][number] => ({
   name: "",
@@ -41,6 +43,10 @@ export function EstimateBuilderPage() {
   const existing = useEstimate(id);
   const create = useCreateEstimate();
   const update = useUpdateEstimate(id ?? "");
+  const send = useSendEstimate();
+  const accept = useAcceptEstimate();
+  const status = existing.data?.status ?? "Draft";
+  const readOnly = isEdit && status !== "Draft";
 
   const methods = useForm<EstimateFormValues, unknown, EstimateFormOutput>({
     resolver: zodResolver(estimateSchema),
@@ -57,12 +63,15 @@ export function EstimateBuilderPage() {
     control,
     register,
     handleSubmit,
-    watch,
     reset,
     setValue,
     formState: { errors, isSubmitting },
   } = methods;
   const { fields, append, remove } = useFieldArray({ control, name: "rooms" });
+  const rooms = useWatch({ control, name: "rooms" }) ?? [];
+  const taxRate = useWatch({ control, name: "taxRate" });
+  const customerId = useWatch({ control, name: "customerId" });
+  const propertyId = useWatch({ control, name: "propertyId" });
 
   const seededEstimateId = useRef<string | null>(null);
 
@@ -93,8 +102,7 @@ export function EstimateBuilderPage() {
     }
   }, [existing.data, reset]);
 
-  const rooms = watch("rooms");
-  const tax = Number(watch("taxRate")) || 0;
+  const tax = Number(taxRate) || 0;
   const preview = estimateTotals(
     rooms.map((r) => ({
       lengthFeet: Number(r.lengthFeet) || 0,
@@ -105,8 +113,6 @@ export function EstimateBuilderPage() {
     })),
     tax,
   );
-
-  const customerId = watch("customerId");
 
   return (
     <FormProvider {...methods}>
@@ -122,10 +128,11 @@ export function EstimateBuilderPage() {
         })}
         className="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-6"
       >
-        <div className="space-y-6">
+        <div className={`space-y-6 ${readOnly ? "pointer-events-none opacity-70" : ""}`}>
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>{isEdit ? `Estimate ${existing.data?.estimateNumber ?? ""}` : "New Estimate"}</CardTitle>
+              {isEdit && existing.data && <Badge variant={status === "Accepted" ? "default" : "secondary"}>{status}</Badge>}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -144,7 +151,7 @@ export function EstimateBuilderPage() {
                   <label className="text-sm">Property</label>
                   <PropertyPicker
                     customerId={customerId || undefined}
-                    value={watch("propertyId")}
+                    value={propertyId}
                     onChange={(id) => setValue("propertyId", id)}
                   />
                   {errors.propertyId && <p className="text-destructive text-sm">{errors.propertyId.message}</p>}
@@ -168,9 +175,11 @@ export function EstimateBuilderPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Rooms</CardTitle>
-              <Button type="button" onClick={() => append(emptyRoom())}>
-                Add room
-              </Button>
+              {!readOnly && (
+                <Button type="button" onClick={() => append(emptyRoom())}>
+                  Add room
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {fields.map((f, i) => (
@@ -195,9 +204,56 @@ export function EstimateBuilderPage() {
               <Row label="Tax" value={fmt(preview.tax)} />
               <Row label="Total" value={fmt(preview.total)} bold />
 
-              <Button type="submit" className="w-full mt-4" disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Save draft"}
-              </Button>
+              {!readOnly && (
+                <React.Fragment>
+                  <Button type="submit" className="w-full mt-4" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving…" : "Save draft"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={isSubmitting || send.isPending}
+                    onClick={handleSubmit(async (values) => {
+                      try {
+                        const saved = isEdit
+                          ? await update.mutateAsync(values)
+                          : await create.mutateAsync(values);
+                        const sent = await send.mutateAsync(saved.id);
+                        toast.success("Estimate marked as sent");
+                        navigate(`/estimates/${sent.id}/edit`);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Could not send estimate");
+                      }
+                    })}
+                  >
+                    {send.isPending ? "Sending…" : "Mark as sent"}
+                  </Button>
+                </React.Fragment>
+              )}
+
+              {status === "Sent" && (
+                <Button
+                  type="button"
+                  className="w-full mt-4"
+                  disabled={accept.isPending}
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const job = await accept.mutateAsync(id);
+                      toast.success(`Job ${job.jobNumber} created`);
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Could not accept estimate");
+                    }
+                  }}
+                >
+                  {accept.isPending ? "Creating job…" : "Accept & create job"}
+                </Button>
+              )}
+
+              {status === "Accepted" && (
+                <p className="text-muted-foreground mt-4">This estimate was accepted and converted to a scheduled job.</p>
+              )}
             </CardContent>
           </Card>
         </aside>

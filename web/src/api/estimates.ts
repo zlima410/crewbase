@@ -5,6 +5,7 @@ import type {
   Estimate,
   EstimateListResponse,
   EstimateStatus,
+  Job,
   UpdateEstimateRequest,
 } from './types'
 
@@ -51,6 +52,28 @@ export function useUpdateEstimate(id: string) {
     onSuccess: (updated) => {
       qc.setQueryData(keys.detail(id), updated);
       qc.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+}
+
+export function useSendEstimate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<Estimate>(`/api/v1/estimates/${id}/send`, { method: "POST" }),
+    onSuccess: (updated) => {
+      qc.setQueryData(keys.detail(updated.id), updated);
+      qc.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+}
+
+export function useAcceptEstimate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<Job>(`/api/v1/estimates/${id}/accept`, { method: "POST" }),
+    onSuccess: (_job, id) => {
+      qc.invalidateQueries({ queryKey: keys.all });
+      qc.invalidateQueries({ queryKey: keys.detail(id) });
     },
   });
 }

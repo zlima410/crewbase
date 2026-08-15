@@ -139,3 +139,38 @@ export type EstimateListResponse = {
   pageSize: number;
   total: number;
 };
+
+export type JobStatus = "Scheduled" | "InProgress" | "Waiting" | "Completed" | "Cancelled";
+
+export type JobRoom = {
+  id: string;
+  name: string;
+  squareFeet: number;
+  billableSquareFeet: number;
+  flooringType: FlooringType;
+  workType: WorkType;
+  installationMethod: InstallationMethod | null;
+  finishType: FinishType | null;
+  notes: string | null;
+  position: number;
+};
+
+export type Job = {
+  id: string;
+  jobNumber: string;
+  status: JobStatus;
+  estimateId: string;
+  customerId: string;
+  customerName: string;
+  propertyId: string;
+  propertyAddress: string;
+  description: string | null;
+  internalNotes: string | null;
+  customerNotes: string | null;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  actualStart: string | null;
+  actualEnd: string | null;
+  createdAt: string;
+  rooms: JobRoom[];
+};

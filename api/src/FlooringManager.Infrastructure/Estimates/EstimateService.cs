@@ -2,6 +2,7 @@ using FlooringManager.Application.Auth;
 using FlooringManager.Application.Common;
 using FlooringManager.Application.Estimates;
 using FlooringManager.Domain.Estimates;
+using FlooringManager.Infrastructure.Common;
 using FlooringManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -78,6 +79,29 @@ public sealed class EstimateService(
         await db.SaveChangesAsync(ct);
 
         return await LoadResponseAsync(estimate.Id, user.CompanyId, ct);
+    }
+
+    public async Task<EstimateResponse?> SendAsync(Guid id, CancellationToken ct)
+    {
+        var user = await currentUserService.RequireAsync(ct);
+
+        var estimate = await db.Estimates
+            .ForCompany(user.CompanyId)
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
+
+        if (estimate is null) return null;
+
+        if (estimate.Status == EstimateStatus.Sent)
+            return await LoadResponseAsync(id, user.CompanyId, ct);
+
+        if (!EstimateTransitions.CanSend(estimate.Status))
+            return null;
+
+        estimate.Status = EstimateStatus.Sent;
+        estimate.UpdatedAt = timeProvider.GetUtcNow();
+        await db.SaveChangesAsync(ct);
+
+        return await LoadResponseAsync(id, user.CompanyId, ct);
     }
 
     public async Task<EstimateResponse?> GetAsync(Guid id, CancellationToken ct)
@@ -179,7 +203,7 @@ public sealed class EstimateService(
         return EstimateMapper.ToResponse(
             estimate,
             $"{customer.FirstName} {customer.LastName}",
-            EstimateMapper.FormatAddress(property.StreetAddress, property.City, property.State, property.PostalCode));
+            AddressText.Format(property.StreetAddress, property.City, property.State, property.PostalCode));
     }
 
 }
