@@ -174,3 +174,22 @@ export type Job = {
   createdAt: string;
   rooms: JobRoom[];
 };
+
+export type JobListItem = {
+  id: string;
+  jobNumber: string;
+  status: JobStatus;
+  customerId: string;
+  customerName: string;
+  propertyAddress: string;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  createdAt: string;
+};
+
+export type JobListResponse = {
+  items: JobListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+};

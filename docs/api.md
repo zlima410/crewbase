@@ -97,7 +97,7 @@ POST /api/v1/estimates/{id}/accept   # transactional: Estimate → Accepted, Job
 ### Jobs
 
 ```http
-GET   /api/v1/jobs                    # supports ?assignedToMe=true for the iOS "My Jobs" screen
+GET   /api/v1/jobs                    # ?page&pageSize&status&search; assignedToMe later for iOS "My Jobs"
 POST  /api/v1/jobs
 GET   /api/v1/jobs/{id}
 PUT   /api/v1/jobs/{id}

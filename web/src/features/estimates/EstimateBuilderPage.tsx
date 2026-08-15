@@ -2,7 +2,7 @@ import * as React from "react";
 import { useEffect, useRef } from "react";
 import { FormProvider, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -252,7 +252,12 @@ export function EstimateBuilderPage() {
               )}
 
               {status === "Accepted" && (
-                <p className="text-muted-foreground mt-4">This estimate was accepted and converted to a scheduled job.</p>
+                <p className="text-muted-foreground mt-4">
+                  This estimate was accepted and converted to a scheduled job.{" "}
+                  <Link to="/jobs" className="text-foreground hover:underline">
+                    View jobs
+                  </Link>
+                </p>
               )}
             </CardContent>
           </Card>

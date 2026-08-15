@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../lib/apiClient'
+import { jobKeys } from './jobs'
 import type {
   CreateEstimateRequest,
   Estimate,
@@ -74,6 +75,7 @@ export function useAcceptEstimate() {
     onSuccess: (_job, id) => {
       qc.invalidateQueries({ queryKey: keys.all });
       qc.invalidateQueries({ queryKey: keys.detail(id) });
+      qc.invalidateQueries({ queryKey: jobKeys.all });
     },
   });
 }

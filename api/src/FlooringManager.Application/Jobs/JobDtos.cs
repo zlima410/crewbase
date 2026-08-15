@@ -33,3 +33,20 @@ public sealed record JobResponse(
     DateTimeOffset? ActualEnd,
     DateTimeOffset CreatedAt,
     IReadOnlyList<JobRoomResponse> Rooms);
+
+public sealed record JobListItem(
+    Guid Id,
+    string JobNumber,
+    JobStatus Status,
+    Guid CustomerId,
+    string CustomerName,
+    string PropertyAddress,
+    DateTimeOffset? ScheduledStart,
+    DateTimeOffset? ScheduledEnd,
+    DateTimeOffset CreatedAt);
+
+public sealed record JobListResponse(
+    IReadOnlyList<JobListItem> Items,
+    int Page,
+    int PageSize,
+    int Total);
