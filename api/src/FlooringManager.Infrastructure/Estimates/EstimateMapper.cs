@@ -61,7 +61,4 @@ public static class EstimateMapper
             pricing.RoomTotal,
             room.Position);
     }
-
-    public static string FormatAddress(string streetAddress, string city, string state, string postalCode) =>
-        $"{streetAddress}, {city}, {state} {postalCode}";
 }

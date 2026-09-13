@@ -2,11 +2,13 @@ using FlooringManager.Application.Auth;
 using FlooringManager.Application.Common;
 using FlooringManager.Application.Customers;
 using FlooringManager.Application.Estimates;
+using FlooringManager.Application.Jobs;
 using FlooringManager.Application.Properties;
 using FlooringManager.Infrastructure.Auth;
 using FlooringManager.Infrastructure.Common;
 using FlooringManager.Infrastructure.Customers;
 using FlooringManager.Infrastructure.Estimates;
+using FlooringManager.Infrastructure.Jobs;
 using FlooringManager.Infrastructure.Persistence;
 using FlooringManager.Infrastructure.Properties;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IPropertyService, PropertyService>();
         services.AddScoped<IEstimateService, EstimateService>();
+        services.AddScoped<IEstimateAcceptanceService, EstimateAcceptanceService>();
+        services.AddScoped<IJobService, JobService>();
         services.AddScoped<EstimateRoomSynchronizer>();
 
         return services;

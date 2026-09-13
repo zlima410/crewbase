@@ -8,6 +8,8 @@ import { CustomerDetailPage } from './features/customers/CustomerDetailPage'
 import { CustomerFormPage } from './features/customers/CustomerFormPage'
 import { EstimatesListPage } from './features/estimates/EstimatesListPage'
 import { EstimateBuilderPage } from './features/estimates/EstimateBuilderPage'
+import { JobsListPage } from './features/jobs/JobsListPage'
+import { JobDetailPage } from './features/jobs/JobDetailPage'
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -25,6 +27,8 @@ export const router = createBrowserRouter([
           { path: "estimates", element: <EstimatesListPage /> },
           { path: "estimates/new", element: <EstimateBuilderPage /> },
           { path: "estimates/:id/edit", element: <EstimateBuilderPage /> },
+          { path: "jobs", element: <JobsListPage /> },
+          { path: "jobs/:id", element: <JobDetailPage /> },
         ],
       },
     ],

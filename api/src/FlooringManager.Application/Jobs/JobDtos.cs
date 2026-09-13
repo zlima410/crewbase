@@ -1,0 +1,55 @@
+using FlooringManager.Domain.Estimates;
+using FlooringManager.Domain.Jobs;
+
+namespace FlooringManager.Application.Jobs;
+
+public sealed record JobRoomResponse(
+    Guid Id,
+    string Name,
+    decimal SquareFeet,
+    decimal BillableSquareFeet,
+    FlooringType FlooringType,
+    WorkType WorkType,
+    InstallationMethod? InstallationMethod,
+    FinishType? FinishType,
+    string? Notes,
+    int Position);
+
+public sealed record JobResponse(
+    Guid Id,
+    string JobNumber,
+    JobStatus Status,
+    Guid EstimateId,
+    Guid CustomerId,
+    string CustomerName,
+    string CustomerPhone,
+    string? CustomerEmail,
+    Guid PropertyId,
+    string PropertyAddress,
+    string? PropertyAccessNotes,
+    string? Description,
+    string? InternalNotes,
+    string? CustomerNotes,
+    DateTimeOffset? ScheduledStart,
+    DateTimeOffset? ScheduledEnd,
+    DateTimeOffset? ActualStart,
+    DateTimeOffset? ActualEnd,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<JobRoomResponse> Rooms);
+
+public sealed record JobListItem(
+    Guid Id,
+    string JobNumber,
+    JobStatus Status,
+    Guid CustomerId,
+    string CustomerName,
+    string PropertyAddress,
+    DateTimeOffset? ScheduledStart,
+    DateTimeOffset? ScheduledEnd,
+    DateTimeOffset CreatedAt);
+
+public sealed record JobListResponse(
+    IReadOnlyList<JobListItem> Items,
+    int Page,
+    int PageSize,
+    int Total);

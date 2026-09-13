@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FlooringManager.Application.Customers;
 using FlooringManager.Application.Estimates;
+using FlooringManager.Application.Jobs;
 using FlooringManager.Domain.Estimates;
 
 namespace FlooringManager.IntegrationTests;
@@ -90,6 +91,35 @@ public sealed class PostgresBehaviourTests(PostgresApiFactory factory) : IClassF
 
             Assert.Equal("EST-0001", body!.EstimateNumber);
         }
+    }
+
+    [Fact]
+    public async Task ConcurrentAccepts_CreateASingleJob()
+    {
+        var tenant = await factory.SeedTenantAsync();
+        var client = factory.ClientFor(tenant.Sub);
+
+        var created = await client.PostAsJsonAsync("/api/v1/estimates", Request(tenant));
+        var estimate = await created.Content.ReadFromJsonAsync<EstimateResponse>(TestJson.Options);
+        var sent = await client.PostAsync($"/api/v1/estimates/{estimate!.Id}/send", null);
+        Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
+
+        const int concurrency = 8;
+        var responses = await Task.WhenAll(Enumerable.Range(0, concurrency).Select(_ =>
+            factory.ClientFor(tenant.Sub)
+                .PostAsync($"/api/v1/estimates/{estimate.Id}/accept", null)));
+
+        Assert.All(responses, response =>
+            Assert.True(
+                response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK,
+                $"Unexpected status {response.StatusCode}"));
+
+        Assert.Equal(1, responses.Count(r => r.StatusCode == HttpStatusCode.Created));
+
+        var jobs = await Task.WhenAll(responses.Select(r =>
+            r.Content.ReadFromJsonAsync<JobResponse>(TestJson.Options)));
+        Assert.Single(jobs.Select(j => j!.Id).Distinct());
+        Assert.Equal("JOB-0001", jobs[0]!.JobNumber);
     }
 
     private static CreateEstimateRequest Request(TestTenant tenant) =>
